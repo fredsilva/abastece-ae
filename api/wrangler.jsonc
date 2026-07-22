@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "abastece-ae-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "abastece-ae-db",
+      "database_id": "0e680a18-53f3-4834-a606-bdf95edd851a",
+      "migrations_dir": "./migrations"
+    }
+  ]
+}

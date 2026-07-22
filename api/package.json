@@ -1,0 +1,20 @@
+{
+  "name": "abastece-ae-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "db:migrations:apply:local": "wrangler d1 migrations apply abastece-ae-db --local",
+    "db:migrations:apply:remote": "wrangler d1 migrations apply abastece-ae-db --remote"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "wrangler": "^4.113.0"
+  }
+}
