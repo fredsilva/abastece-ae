@@ -1,19 +1,13 @@
 import { Hono } from "hono";
-import { cors } from "hono/cors";
 import { admin } from "./routes/admin";
 import { cfAccess } from "./middleware/cfAccess";
 
-const ADMIN_ORIGINS = ["http://localhost:5173", "https://abastece-ae-admin.pages.dev"];
-
+// Painel admin e API ficam no mesmo domínio (Worker serve o build do admin como static
+// assets — ver wrangler.jsonc), então não há requisições cross-origin a proteger com CORS.
+// Exceção é o dev local, onde o proxy do Vite (vite.config.ts) já torna as chamadas
+// same-origin do ponto de vista do navegador.
 const app = new Hono<{ Bindings: Env }>();
 
-app.use(
-  "/admin/*",
-  cors({
-    origin: ADMIN_ORIGINS,
-    credentials: true,
-  })
-);
 app.use("/admin/*", cfAccess);
 app.route("/admin", admin);
 
