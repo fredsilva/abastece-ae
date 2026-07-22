@@ -27,6 +27,6 @@
   "assets": {
     "directory": "../admin/dist",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/admin/*", "/health"]
+    "run_worker_first": ["/admin/*", "/health", "/auth/*"]
   }
 }
