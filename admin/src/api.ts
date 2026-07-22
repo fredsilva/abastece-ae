@@ -36,3 +36,20 @@ export async function updateStation(id: string, patch: Partial<StationInput & { 
   });
   await handle(res);
 }
+
+export interface BulkImportResult {
+  imported: number;
+  skippedCount: number;
+  skipped: { nome: string; reason: string }[];
+  total: number;
+}
+
+export async function bulkImportStations(payload: { postos: unknown[] }): Promise<BulkImportResult> {
+  const res = await fetch(`${API_BASE}/admin/stations/bulk-import`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handle(res);
+}

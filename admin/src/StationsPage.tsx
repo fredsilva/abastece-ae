@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createStation, listStations, updateStation } from "./api";
 import { StationFormModal } from "./StationFormModal";
+import { StationImportModal } from "./StationImportModal";
 import type { Station, StationInput } from "./types";
 
 const PILOT_CITY_ID = "paraiso-do-tocantins-to";
@@ -32,6 +33,7 @@ export function StationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Station | undefined>(undefined);
+  const [importOpen, setImportOpen] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -72,15 +74,20 @@ export function StationsPage() {
           <h2>Postos — {PILOT_CITY}/{PILOT_STATE}</h2>
           <p style={{ color: "var(--color-muted)", margin: 0, fontSize: 14 }}>{stations.length} posto(s) cadastrado(s)</p>
         </div>
-        <button
-          className="button-primary"
-          onClick={() => {
-            setEditing(undefined);
-            setModalOpen(true);
-          }}
-        >
-          + Novo posto
-        </button>
+        <div style={{ display: "flex", gap: "var(--space-sm)" }}>
+          <button className="button-secondary" onClick={() => setImportOpen(true)}>
+            Importar JSON
+          </button>
+          <button
+            className="button-primary"
+            onClick={() => {
+              setEditing(undefined);
+              setModalOpen(true);
+            }}
+          >
+            + Novo posto
+          </button>
+        </div>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
@@ -152,6 +159,8 @@ export function StationsPage() {
           onSave={handleSave}
         />
       )}
+
+      {importOpen && <StationImportModal onClose={() => setImportOpen(false)} onImported={load} />}
     </div>
   );
 }

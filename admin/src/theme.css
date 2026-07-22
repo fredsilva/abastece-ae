@@ -59,45 +59,95 @@ h1, h2, h3 {
   margin: 0;
 }
 
-.app-shell {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: var(--space-xl) var(--space-lg);
+.admin-shell {
+  display: flex;
+  min-height: 100vh;
 }
 
-.top-nav {
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--color-surface-soft);
+  border-right: 1px solid var(--color-hairline);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-lg) var(--space-md);
+}
+
+.sidebar-logo {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  padding: var(--space-xs) var(--space-sm) var(--space-lg);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-link {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 64px;
-  border-bottom: 1px solid var(--color-hairline);
-  margin-bottom: var(--space-xl);
-}
-
-.nav-pill-group {
-  display: flex;
-  gap: var(--space-xxs);
-  background: var(--color-surface-soft);
-  border-radius: var(--radius-pill);
-  padding: 6px;
-}
-
-.category-tab {
+  gap: var(--space-sm);
+  padding: 10px var(--space-sm);
   border: none;
   background: transparent;
-  color: var(--color-muted);
+  border-radius: var(--radius-md);
+  color: var(--color-body);
   font-family: var(--font-body);
   font-size: 14px;
   font-weight: 500;
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
+  text-align: left;
   cursor: pointer;
+  width: 100%;
 }
 
-.category-tab-active {
+.sidebar-link svg {
+  flex-shrink: 0;
+  color: var(--color-muted);
+}
+
+.sidebar-link:hover:not(:disabled) {
+  background: var(--color-surface-card);
+}
+
+.sidebar-link--active {
   background: var(--color-canvas);
   color: var(--color-ink);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-link--active svg {
+  color: var(--color-ink);
+}
+
+.sidebar-link:disabled {
+  color: var(--color-muted-soft);
+  cursor: default;
+}
+
+.sidebar-link-badge {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-muted);
+  background: var(--color-hairline-soft);
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-xl);
+}
+
+.main-content-inner {
+  max-width: 1100px;
 }
 
 .button-primary {
@@ -219,11 +269,86 @@ table.data-table td {
 .modal {
   background: var(--color-canvas);
   border-radius: var(--radius-lg);
-  padding: var(--space-xl);
   width: 100%;
-  max-width: 480px;
+  max-width: 760px;
   max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(17, 17, 17, 0.16);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-xl);
+  border-bottom: 1px solid var(--color-hairline);
+  flex-shrink: 0;
+}
+
+.modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  background: var(--color-surface-soft);
+  color: var(--color-ink);
+}
+
+.modal-body {
+  padding: var(--space-xl);
   overflow-y: auto;
+}
+
+.modal-footer {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+  padding: var(--space-md) var(--space-xl);
+  border-top: 1px solid var(--color-hairline);
+  flex-shrink: 0;
+}
+
+.modal--sm {
+  max-width: 480px;
+}
+
+.file-drop {
+  border: 1px dashed var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  text-align: center;
+  cursor: pointer;
+  background: var(--color-surface-soft);
+}
+
+.file-drop:hover {
+  border-color: var(--color-muted);
+}
+
+.form-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+  margin: var(--space-lg) 0 var(--space-sm);
+}
+
+.form-section-title:first-child {
+  margin-top: 0;
 }
 
 .form-field {

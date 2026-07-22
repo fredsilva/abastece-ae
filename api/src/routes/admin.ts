@@ -72,6 +72,19 @@ function toStation(row: StationRow) {
   };
 }
 
+function normalizeText(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function citySlug(city: string, uf: string): string {
+  return `${normalizeText(city).toLowerCase().replace(/\s+/g, "-")}-${uf.toLowerCase()}`;
+}
+
 export const admin = new Hono<{ Bindings: Env; Variables: { accessEmail?: string } }>();
 
 admin.get("/stations", async (c) => {
@@ -151,6 +164,80 @@ admin.post("/stations", async (c) => {
     .run();
 
   return c.json({ id }, 201);
+});
+
+interface BulkImportPosto {
+  nome?: string;
+  bandeira?: string | null;
+  cidade?: string;
+  estado?: string;
+  endereco?: string | null;
+  localizacao?: { latitude?: number; longitude?: number };
+  google_place_id?: string | null;
+}
+
+admin.post("/stations/bulk-import", async (c) => {
+  const body = await c.req.json<{ postos?: BulkImportPosto[] }>();
+  const postos = body.postos;
+
+  if (!Array.isArray(postos) || postos.length === 0) {
+    return c.json({ error: "corpo deve conter um array 'postos' não vazio" }, 400);
+  }
+
+  let imported = 0;
+  const skipped: { nome: string; reason: string }[] = [];
+
+  for (const posto of postos) {
+    const nome = posto.nome?.trim();
+    const cidade = posto.cidade?.trim();
+    const estado = posto.estado?.trim();
+    const lat = posto.localizacao?.latitude;
+    const lng = posto.localizacao?.longitude;
+
+    if (!nome || !cidade || !estado || typeof lat !== "number" || typeof lng !== "number") {
+      skipped.push({ nome: nome ?? "(sem nome)", reason: "campos obrigatórios ausentes (nome/cidade/estado/localização)" });
+      continue;
+    }
+
+    const placeId = posto.google_place_id ?? null;
+    const cityId = citySlug(cidade, estado);
+
+    if (placeId) {
+      const existing = await c.env.DB.prepare("SELECT id FROM gas_stations WHERE google_place_id = ?").bind(placeId).first();
+      if (existing) {
+        skipped.push({ nome, reason: "já importado (mesmo google_place_id)" });
+        continue;
+      }
+    } else {
+      const existing = await c.env.DB.prepare(
+        "SELECT id FROM gas_stations WHERE city_id = ? AND LOWER(nome_fantasia) = LOWER(?)"
+      )
+        .bind(cityId, nome)
+        .first();
+      if (existing) {
+        skipped.push({ nome, reason: "posto com o mesmo nome já cadastrado nesta cidade" });
+        continue;
+      }
+    }
+
+    const postalCodeMatch = posto.endereco?.match(/\d{5}-?\d{3}/);
+    const brand = posto.bandeira && posto.bandeira !== "Independente" ? posto.bandeira : null;
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    await c.env.DB.prepare(
+      `INSERT INTO gas_stations
+         (id, nome_fantasia, brand, address_street, city, state, postal_code,
+          latitude, longitude, city_id, source, verified, status, google_place_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'admin', 0, 'active', ?, ?, ?)`
+    )
+      .bind(id, nome, brand, posto.endereco ?? null, cidade, estado, postalCodeMatch?.[0] ?? null, lat, lng, cityId, placeId, now, now)
+      .run();
+
+    imported++;
+  }
+
+  return c.json({ imported, skippedCount: skipped.length, skipped, total: postos.length });
 });
 
 const EDITABLE_COLUMNS: Record<string, string> = {
