@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Station, StationInput } from "./types";
+import { StationMap } from "./StationMap";
 
 interface Props {
   cityId: string;
@@ -130,6 +131,11 @@ export function StationFormModal({ cityId, defaultCity, defaultState, station, o
                 onChange={(e) => set("longitude", parseFloat(e.target.value))}
               />
             </div>
+          </div>
+
+          <div className="form-field">
+            <label>Localização no mapa</label>
+            <StationMap latitude={form.latitude} longitude={form.longitude} />
           </div>
 
           <div style={{ display: "flex", gap: "var(--space-sm)", marginTop: "var(--space-md)", justifyContent: "flex-end" }}>

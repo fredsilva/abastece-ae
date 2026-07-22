@@ -248,6 +248,14 @@ table.data-table td {
   flex: 1;
 }
 
+.map-preview {
+  width: 100%;
+  height: 220px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
 .error-banner {
   background: color-mix(in srgb, var(--color-error) 10%, white);
   color: var(--color-error);
