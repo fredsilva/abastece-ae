@@ -1,0 +1,13 @@
+{
+  "name": "abastece-ae-scripts",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "seed-anp": "node --env-file=.env --experimental-strip-types --no-warnings seed-anp.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.7.0"
+  }
+}
