@@ -1,6 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Station, StationInput } from "./types";
 import { StationMap } from "./StationMap";
+import { Combobox, type ComboboxOption } from "./Combobox";
+import { BR_STATE_OPTIONS } from "./br-states";
+
+interface IbgeMunicipio {
+  nome: string;
+}
 
 interface Props {
   cityId: string;
@@ -29,6 +35,10 @@ export function StationFormModal({ cityId, defaultCity, defaultState, station, o
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cityOptions, setCityOptions] = useState<ComboboxOption[]>([]);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+  const [citiesError, setCitiesError] = useState(false);
+  const citiesCache = useRef<Map<string, ComboboxOption[]>>(new Map());
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -38,13 +48,63 @@ export function StationFormModal({ cityId, defaultCity, defaultState, station, o
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
+  useEffect(() => {
+    const uf = form.state;
+    if (!uf) {
+      setCityOptions([]);
+      return;
+    }
+    const cached = citiesCache.current.get(uf);
+    if (cached) {
+      setCityOptions(cached);
+      setCitiesError(false);
+      return;
+    }
+
+    let cancelled = false;
+    setCitiesLoading(true);
+    setCitiesError(false);
+    fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Falha ao carregar cidades");
+        return res.json() as Promise<IbgeMunicipio[]>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        const options = data.map((c) => ({ value: c.nome, label: c.nome }));
+        citiesCache.current.set(uf, options);
+        setCityOptions(options);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCityOptions([]);
+          setCitiesError(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCitiesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form.state]);
+
   function set<K extends keyof StationInput>(key: K, value: StationInput[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function handleStateChange(sigla: string) {
+    setForm((f) => (f.state === sigla ? f : { ...f, state: sigla, city: "" }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!form.state || !form.city) {
+      setError("Selecione o estado e a cidade.");
+      return;
+    }
     setSaving(true);
     try {
       await onSave(form);
@@ -114,13 +174,21 @@ export function StationFormModal({ cityId, defaultCity, defaultState, station, o
             </div>
 
             <div className="form-row">
-              <div className="form-field" style={{ flex: 2 }}>
-                <label>Cidade *</label>
-                <input className="text-input" required value={form.city} onChange={(e) => set("city", e.target.value)} />
+              <div className="form-field" style={{ flex: 1.3 }}>
+                <label>Estado *</label>
+                <Combobox value={form.state} onChange={handleStateChange} options={BR_STATE_OPTIONS} placeholder="Buscar estado..." />
               </div>
-              <div className="form-field">
-                <label>UF *</label>
-                <input className="text-input" required maxLength={2} value={form.state} onChange={(e) => set("state", e.target.value.toUpperCase())} />
+              <div className="form-field" style={{ flex: 1.3 }}>
+                <label>Cidade *</label>
+                <Combobox
+                  value={form.city}
+                  onChange={(v) => set("city", v)}
+                  options={cityOptions}
+                  loading={citiesLoading}
+                  disabled={!form.state}
+                  placeholder={form.state ? "Buscar cidade..." : "Selecione o estado primeiro"}
+                  emptyMessage={citiesError ? "Erro ao carregar cidades" : "Nenhuma cidade encontrada"}
+                />
               </div>
               <div className="form-field">
                 <label>CEP</label>
