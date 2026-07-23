@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Station, StationInput } from "./types";
+import type { FuelType, Station, StationInput, StationPricesInput } from "./types";
 import { StationMap } from "./StationMap";
 import { Combobox, type ComboboxOption } from "./Combobox";
 import { BR_STATE_OPTIONS } from "./br-states";
@@ -14,8 +14,14 @@ interface Props {
   defaultState: string;
   station?: Station;
   onClose: () => void;
-  onSave: (input: StationInput) => Promise<void>;
+  onSave: (input: StationInput, prices: StationPricesInput) => Promise<void>;
 }
+
+const FUEL_LABELS: Record<FuelType, string> = {
+  gasolina: "Gasolina",
+  etanol: "Etanol",
+  diesel: "Diesel",
+};
 
 export function StationFormModal({ cityId, defaultCity, defaultState, station, onClose, onSave }: Props) {
   const [form, setForm] = useState<StationInput>({
@@ -32,6 +38,11 @@ export function StationFormModal({ cityId, defaultCity, defaultState, station, o
     latitude: station?.latitude ?? 0,
     longitude: station?.longitude ?? 0,
     cityId: station?.cityId ?? cityId,
+  });
+  const [prices, setPrices] = useState<Record<FuelType, string>>({
+    gasolina: station?.prices.gasolina ? String(station.prices.gasolina.price) : "",
+    etanol: station?.prices.etanol ? String(station.prices.etanol.price) : "",
+    diesel: station?.prices.diesel ? String(station.prices.diesel.price) : "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +109,10 @@ export function StationFormModal({ cityId, defaultCity, defaultState, station, o
     setForm((f) => (f.state === sigla ? f : { ...f, state: sigla, city: "" }));
   }
 
+  function setPrice(fuel: FuelType, value: string) {
+    setPrices((p) => ({ ...p, [fuel]: value }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -105,9 +120,22 @@ export function StationFormModal({ cityId, defaultCity, defaultState, station, o
       setError("Selecione o estado e a cidade.");
       return;
     }
+
+    const pricesPayload: StationPricesInput = {};
+    for (const fuel of Object.keys(prices) as FuelType[]) {
+      const raw = prices[fuel].trim().replace(",", ".");
+      if (raw === "") continue;
+      const value = Number(raw);
+      if (!Number.isFinite(value) || value <= 0) {
+        setError(`Preço inválido para ${FUEL_LABELS[fuel]}.`);
+        return;
+      }
+      pricesPayload[fuel] = value;
+    }
+
     setSaving(true);
     try {
-      await onSave(form);
+      await onSave(form, pricesPayload);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar");
@@ -225,6 +253,25 @@ export function StationFormModal({ cityId, defaultCity, defaultState, station, o
 
             <div className="form-field">
               <StationMap latitude={form.latitude} longitude={form.longitude} />
+            </div>
+
+            <div className="form-section-title">Preços</div>
+
+            <div className="form-row">
+              {(Object.keys(FUEL_LABELS) as FuelType[]).map((fuel) => (
+                <div className="form-field" key={fuel}>
+                  <label>{FUEL_LABELS[fuel]} (R$/L)</label>
+                  <input
+                    className="text-input"
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    placeholder="0,00"
+                    value={prices[fuel]}
+                    onChange={(e) => setPrice(fuel, e.target.value)}
+                  />
+                </div>
+              ))}
             </div>
           </form>
         </div>

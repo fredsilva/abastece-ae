@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 
 type FuelType = "gasolina" | "etanol" | "diesel";
+const FUEL_TYPES: FuelType[] = ["gasolina", "etanol", "diesel"];
 
 interface StationRow {
   id: string;
@@ -287,6 +288,47 @@ admin.put("/stations/:id", async (c) => {
 
   if (result.meta.changes === 0) {
     return c.json({ error: "posto não encontrado" }, 404);
+  }
+
+  return c.json({ ok: true });
+});
+
+admin.put("/stations/:id/prices", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json<Partial<Record<FuelType, number | null>>>();
+
+  const station = await c.env.DB.prepare("SELECT id FROM gas_stations WHERE id = ?").bind(id).first();
+  if (!station) {
+    return c.json({ error: "posto não encontrado" }, 404);
+  }
+
+  const now = new Date().toISOString();
+
+  for (const fuelType of FUEL_TYPES) {
+    if (!(fuelType in body)) continue;
+    const price = body[fuelType];
+
+    if (price === null) {
+      await c.env.DB.prepare("DELETE FROM fuel_prices WHERE gas_station_id = ? AND fuel_type = ?").bind(id, fuelType).run();
+      continue;
+    }
+
+    if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) {
+      return c.json({ error: `preço inválido para ${fuelType}` }, 400);
+    }
+
+    await c.env.DB.prepare(
+      `INSERT INTO fuel_prices (gas_station_id, fuel_type, price, previous_price, price_changed_at, last_reported_at, confidence_score)
+       VALUES (?, ?, ?, NULL, ?, ?, 1.0)
+       ON CONFLICT(gas_station_id, fuel_type) DO UPDATE SET
+         previous_price = CASE WHEN fuel_prices.price != excluded.price THEN fuel_prices.price ELSE fuel_prices.previous_price END,
+         price = excluded.price,
+         price_changed_at = CASE WHEN fuel_prices.price != excluded.price THEN excluded.price_changed_at ELSE fuel_prices.price_changed_at END,
+         last_reported_at = excluded.last_reported_at,
+         confidence_score = 1.0`
+    )
+      .bind(id, fuelType, price, now, now)
+      .run();
   }
 
   return c.json({ ok: true });

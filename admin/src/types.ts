@@ -44,3 +44,5 @@ export interface StationInput {
   longitude: number;
   cityId: string;
 }
+
+export type StationPricesInput = Partial<Record<FuelType, number>>;

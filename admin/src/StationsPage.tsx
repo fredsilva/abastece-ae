@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { createStation, listStations, updateStation } from "./api";
+import { createStation, listStations, updateStation, updateStationPrices } from "./api";
 import { StationFormModal } from "./StationFormModal";
 import { StationImportModal } from "./StationImportModal";
-import type { Station, StationInput } from "./types";
+import type { Station, StationInput, StationPricesInput } from "./types";
 
 const PILOT_CITY_ID = "paraiso-do-tocantins-to";
 const PILOT_CITY = "Paraíso do Tocantins";
@@ -52,11 +52,13 @@ export function StationsPage() {
     load();
   }, []);
 
-  async function handleSave(input: StationInput) {
+  async function handleSave(input: StationInput, prices: StationPricesInput) {
+    const id = editing ? editing.id : (await createStation(input)).id;
     if (editing) {
       await updateStation(editing.id, input);
-    } else {
-      await createStation(input);
+    }
+    if (Object.keys(prices).length > 0) {
+      await updateStationPrices(id, prices);
     }
     await load();
   }
