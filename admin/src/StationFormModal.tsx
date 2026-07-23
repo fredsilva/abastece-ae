@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { FuelType, Station, StationInput, StationPricesInput } from "./types";
+import type { FuelType, PriceHistoryEntry, Station, StationInput, StationPricesInput } from "./types";
 import { StationMap } from "./StationMap";
 import { Combobox, type ComboboxOption } from "./Combobox";
 import { BR_STATE_OPTIONS } from "./br-states";
+import { getStationPriceHistory } from "./api";
 
 interface IbgeMunicipio {
   nome: string;
@@ -46,6 +47,8 @@ export function StationFormModal({ cityId, defaultCity, defaultState, station, o
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<PriceHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [cityOptions, setCityOptions] = useState<ComboboxOption[]>([]);
   const [citiesLoading, setCitiesLoading] = useState(false);
   const [citiesError, setCitiesError] = useState(false);
@@ -58,6 +61,25 @@ export function StationFormModal({ cityId, defaultCity, defaultState, station, o
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
+
+  useEffect(() => {
+    if (!station) return;
+    let cancelled = false;
+    setHistoryLoading(true);
+    getStationPriceHistory(station.id)
+      .then((entries) => {
+        if (!cancelled) setHistory(entries);
+      })
+      .catch(() => {
+        if (!cancelled) setHistory([]);
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [station]);
 
   useEffect(() => {
     const uf = form.state;
@@ -274,6 +296,48 @@ export function StationFormModal({ cityId, defaultCity, defaultState, station, o
               ))}
             </div>
           </form>
+
+          {station && (
+            <div>
+              <div className="form-section-title">Histórico de preços</div>
+              {historyLoading ? (
+                <p style={{ color: "var(--color-muted)", fontSize: 14 }}>Carregando histórico...</p>
+              ) : history.length === 0 ? (
+                <p style={{ color: "var(--color-muted)", fontSize: 14 }}>Nenhuma alteração de preço registrada ainda.</p>
+              ) : (
+                <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Data</th>
+                        <th>Combustível</th>
+                        <th>Anterior</th>
+                        <th>Novo preço</th>
+                        <th>Origem</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.map((entry) => (
+                        <tr key={entry.id}>
+                          <td>{new Date(entry.changedAt).toLocaleString("pt-BR")}</td>
+                          <td>{FUEL_LABELS[entry.fuelType]}</td>
+                          <td>{entry.previousPrice !== null ? `R$ ${entry.previousPrice.toFixed(2)}` : "—"}</td>
+                          <td>R$ {entry.price.toFixed(2)}</td>
+                          <td>
+                            {entry.source === "admin"
+                              ? entry.changedBy
+                                ? `Admin (${entry.changedBy})`
+                                : "Admin"
+                              : "Usuário do app"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="modal-footer">

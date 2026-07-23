@@ -1,5 +1,5 @@
 import { API_BASE } from "./config";
-import type { Station, StationInput, StationPricesInput } from "./types";
+import type { PriceHistoryEntry, Station, StationInput, StationPricesInput } from "./types";
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -45,6 +45,14 @@ export async function updateStationPrices(id: string, prices: StationPricesInput
     body: JSON.stringify(prices),
   });
   await handle(res);
+}
+
+export async function getStationPriceHistory(id: string): Promise<PriceHistoryEntry[]> {
+  const res = await fetch(`${API_BASE}/admin/stations/${id}/prices/history`, {
+    credentials: "include",
+  });
+  const data = await handle<{ history: PriceHistoryEntry[] }>(res);
+  return data.history;
 }
 
 export interface BulkImportResult {

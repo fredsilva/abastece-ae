@@ -296,6 +296,7 @@ admin.put("/stations/:id", async (c) => {
 admin.put("/stations/:id/prices", async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json<Partial<Record<FuelType, number | null>>>();
+  const changedBy = c.get("accessEmail") ?? null;
 
   const station = await c.env.DB.prepare("SELECT id FROM gas_stations WHERE id = ?").bind(id).first();
   if (!station) {
@@ -308,8 +309,14 @@ admin.put("/stations/:id/prices", async (c) => {
     if (!(fuelType in body)) continue;
     const price = body[fuelType];
 
+    const existing = await c.env.DB.prepare("SELECT price FROM fuel_prices WHERE gas_station_id = ? AND fuel_type = ?")
+      .bind(id, fuelType)
+      .first<{ price: number }>();
+
     if (price === null) {
-      await c.env.DB.prepare("DELETE FROM fuel_prices WHERE gas_station_id = ? AND fuel_type = ?").bind(id, fuelType).run();
+      if (existing) {
+        await c.env.DB.prepare("DELETE FROM fuel_prices WHERE gas_station_id = ? AND fuel_type = ?").bind(id, fuelType).run();
+      }
       continue;
     }
 
@@ -317,19 +324,79 @@ admin.put("/stations/:id/prices", async (c) => {
       return c.json({ error: `preço inválido para ${fuelType}` }, 400);
     }
 
+    if (existing && existing.price === price) {
+      // preço não mudou de fato — só marca que foi confirmado agora, sem gerar entrada de histórico
+      await c.env.DB.prepare("UPDATE fuel_prices SET last_reported_at = ? WHERE gas_station_id = ? AND fuel_type = ?")
+        .bind(now, id, fuelType)
+        .run();
+      continue;
+    }
+
+    const previousPrice = existing?.price ?? null;
+
     await c.env.DB.prepare(
       `INSERT INTO fuel_prices (gas_station_id, fuel_type, price, previous_price, price_changed_at, last_reported_at, confidence_score)
-       VALUES (?, ?, ?, NULL, ?, ?, 1.0)
+       VALUES (?, ?, ?, ?, ?, ?, 1.0)
        ON CONFLICT(gas_station_id, fuel_type) DO UPDATE SET
-         previous_price = CASE WHEN fuel_prices.price != excluded.price THEN fuel_prices.price ELSE fuel_prices.previous_price END,
+         previous_price = excluded.previous_price,
          price = excluded.price,
-         price_changed_at = CASE WHEN fuel_prices.price != excluded.price THEN excluded.price_changed_at ELSE fuel_prices.price_changed_at END,
+         price_changed_at = excluded.price_changed_at,
          last_reported_at = excluded.last_reported_at,
          confidence_score = 1.0`
     )
-      .bind(id, fuelType, price, now, now)
+      .bind(id, fuelType, price, previousPrice, now, now)
+      .run();
+
+    await c.env.DB.prepare(
+      `INSERT INTO fuel_price_history (id, gas_station_id, fuel_type, price, previous_price, source, changed_by, changed_at)
+       VALUES (?, ?, ?, ?, ?, 'admin', ?, ?)`
+    )
+      .bind(crypto.randomUUID(), id, fuelType, price, previousPrice, changedBy, now)
       .run();
   }
 
   return c.json({ ok: true });
+});
+
+interface PriceHistoryRow {
+  id: string;
+  fuel_type: FuelType;
+  price: number;
+  previous_price: number | null;
+  source: "admin" | "user_report";
+  changed_by: string | null;
+  changed_at: string;
+}
+
+admin.get("/stations/:id/prices/history", async (c) => {
+  const id = c.req.param("id");
+  const fuelType = c.req.query("fuel_type");
+
+  const query = fuelType
+    ? c.env.DB.prepare(
+        `SELECT id, fuel_type, price, previous_price, source, changed_by, changed_at
+         FROM fuel_price_history
+         WHERE gas_station_id = ? AND fuel_type = ?
+         ORDER BY changed_at DESC`
+      ).bind(id, fuelType)
+    : c.env.DB.prepare(
+        `SELECT id, fuel_type, price, previous_price, source, changed_by, changed_at
+         FROM fuel_price_history
+         WHERE gas_station_id = ?
+         ORDER BY changed_at DESC`
+      ).bind(id);
+
+  const { results } = await query.all<PriceHistoryRow>();
+
+  return c.json({
+    history: results.map((row) => ({
+      id: row.id,
+      fuelType: row.fuel_type,
+      price: row.price,
+      previousPrice: row.previous_price,
+      source: row.source,
+      changedBy: row.changed_by,
+      changedAt: row.changed_at,
+    })),
+  });
 });

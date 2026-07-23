@@ -46,3 +46,13 @@ export interface StationInput {
 }
 
 export type StationPricesInput = Partial<Record<FuelType, number>>;
+
+export interface PriceHistoryEntry {
+  id: string;
+  fuelType: FuelType;
+  price: number;
+  previousPrice: number | null;
+  source: "admin" | "user_report";
+  changedBy: string | null;
+  changedAt: string;
+}
