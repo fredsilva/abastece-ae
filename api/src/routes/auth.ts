@@ -1,13 +1,15 @@
 import { Hono } from "hono";
 import { generateToken, hashToken } from "../lib/crypto";
-import { signAccessToken, verifyAccessToken } from "../lib/jwt";
+import { signAccessToken } from "../lib/jwt";
 import { sendMagicLinkEmail } from "../lib/email";
+import { requireUser } from "../middleware/requireUser";
 
-export const auth = new Hono<{ Bindings: Env }>();
+export const auth = new Hono<{ Bindings: Env; Variables: { userId: string; userEmail: string } }>();
 
 const MAGIC_LINK_TTL_MINUTES = 15;
 const REFRESH_TOKEN_TTL_DAYS = 30;
 const REQUEST_COOLDOWN_SECONDS = 60;
+const FUEL_TABS = ["gasolina", "etanol", "diesel"] as const;
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -73,9 +75,9 @@ auth.post("/email/verify", async (c) => {
 
   await c.env.DB.prepare("UPDATE magic_links SET used_at = ? WHERE id = ?").bind(now, magicLink.id).run();
 
-  let user = await c.env.DB.prepare("SELECT id, email FROM users WHERE email = ?")
+  let user = await c.env.DB.prepare("SELECT id, email, default_fuel_tab FROM users WHERE email = ?")
     .bind(magicLink.email)
-    .first<{ id: string; email: string }>();
+    .first<{ id: string; email: string; default_fuel_tab: string }>();
 
   if (!user) {
     const userId = crypto.randomUUID();
@@ -84,7 +86,7 @@ auth.post("/email/verify", async (c) => {
     )
       .bind(userId, magicLink.email, now, now)
       .run();
-    user = { id: userId, email: magicLink.email };
+    user = { id: userId, email: magicLink.email, default_fuel_tab: "gasolina" };
   } else {
     await c.env.DB.prepare("UPDATE users SET last_active_at = ?, email_verified = 1 WHERE id = ?")
       .bind(now, user.id)
@@ -107,7 +109,11 @@ auth.post("/email/verify", async (c) => {
   const session = await createSession(c.env.DB, user.id);
   const accessToken = await signAccessToken(c.env.JWT_SECRET, { sub: user.id, email: user.email });
 
-  return c.json({ accessToken, refreshToken: session.refreshToken, user });
+  return c.json({
+    accessToken,
+    refreshToken: session.refreshToken,
+    user: { id: user.id, email: user.email, defaultFuelTab: user.default_fuel_tab },
+  });
 });
 
 auth.post("/refresh", async (c) => {
@@ -160,19 +166,31 @@ auth.post("/logout", async (c) => {
   return c.json({ ok: true });
 });
 
-auth.get("/me", async (c) => {
-  const authHeader = c.req.header("Authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) {
-    return c.json({ error: "não autenticado" }, 401);
+auth.get("/me", requireUser, async (c) => {
+  const user = await c.env.DB.prepare("SELECT id, email, default_fuel_tab FROM users WHERE id = ?")
+    .bind(c.get("userId"))
+    .first<{ id: string; email: string; default_fuel_tab: string }>();
+
+  if (!user) {
+    return c.json({ error: "usuário não encontrado" }, 404);
   }
 
-  try {
-    const payload = await verifyAccessToken(c.env.JWT_SECRET, token);
-    return c.json({ id: payload.sub, email: payload.email });
-  } catch {
-    return c.json({ error: "token inválido" }, 401);
+  return c.json({ id: user.id, email: user.email, defaultFuelTab: user.default_fuel_tab });
+});
+
+auth.put("/me/preferences", requireUser, async (c) => {
+  const body = await c.req.json<{ defaultFuelTab?: string }>();
+  const defaultFuelTab = body.defaultFuelTab;
+
+  if (!defaultFuelTab || !FUEL_TABS.includes(defaultFuelTab as (typeof FUEL_TABS)[number])) {
+    return c.json({ error: "defaultFuelTab deve ser gasolina, etanol ou diesel" }, 400);
   }
+
+  await c.env.DB.prepare("UPDATE users SET default_fuel_tab = ? WHERE id = ?")
+    .bind(defaultFuelTab, c.get("userId"))
+    .run();
+
+  return c.json({ ok: true, defaultFuelTab });
 });
 
 async function createSession(db: D1Database, userId: string): Promise<{ refreshToken: string }> {

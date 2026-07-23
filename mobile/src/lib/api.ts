@@ -8,9 +8,36 @@ async function handle<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export type FuelType = "gasolina" | "etanol" | "diesel";
+
 export interface AuthUser {
   id: string;
   email: string;
+  defaultFuelTab: FuelType;
+}
+
+export interface Station {
+  id: string;
+  nomeFantasia: string;
+  brand: string | null;
+  addressStreet: string | null;
+  addressNumber: string | null;
+  addressNeighborhood: string | null;
+  city: string;
+  state: string;
+  latitude: number;
+  longitude: number;
+  distanceMeters: number | null;
+  price: number;
+  previousPrice: number | null;
+  priceChangedAt: string;
+  lastReportedAt: string;
+  pixDiscount: boolean;
+  cashDiscount: boolean;
+  confidenceScore: number;
+  ratingAvg: number | null;
+  ratingsCount: number;
+  cheapest: boolean;
 }
 
 export interface AuthResult {
@@ -51,6 +78,30 @@ export async function getMe(accessToken: string): Promise<AuthUser> {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   return handle(res);
+}
+
+export async function fetchStations(params: {
+  fuel: FuelType;
+  latitude?: number;
+  longitude?: number;
+}): Promise<Station[]> {
+  const query = new URLSearchParams({ fuel: params.fuel });
+  if (params.latitude !== undefined && params.longitude !== undefined) {
+    query.set("lat", String(params.latitude));
+    query.set("lng", String(params.longitude));
+  }
+  const res = await fetch(`${API_BASE}/stations?${query.toString()}`);
+  const body = await handle<{ stations: Station[] }>(res);
+  return body.stations;
+}
+
+export async function updateDefaultFuelTab(accessToken: string, defaultFuelTab: FuelType): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/me/preferences`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ defaultFuelTab }),
+  });
+  await handle(res);
 }
 
 export async function logoutSession(refreshToken: string): Promise<void> {

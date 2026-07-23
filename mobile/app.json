@@ -35,7 +35,13 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O Abastece Aê usa sua localização para mostrar os postos mais próximos e calcular distâncias."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

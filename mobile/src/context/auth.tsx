@@ -3,10 +3,12 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { secureStorage } from "@/lib/secure-storage";
 import {
   type AuthUser,
+  type FuelType,
   getMe,
   logoutSession,
   refreshSession,
   requestMagicLink as apiRequestMagicLink,
+  updateDefaultFuelTab as apiUpdateDefaultFuelTab,
   verifyMagicLink,
 } from "@/lib/api";
 
@@ -19,6 +21,7 @@ interface AuthContextValue {
   requestMagicLink: (email: string) => Promise<void>;
   completeLogin: (token: string) => Promise<void>;
   logout: () => Promise<void>;
+  setDefaultFuelTab: (fuel: FuelType) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -69,8 +72,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function setDefaultFuelTab(fuel: FuelType) {
+    if (!accessToken) return;
+    await apiUpdateDefaultFuelTab(accessToken, fuel);
+    setUser((prev) => (prev ? { ...prev, defaultFuelTab: fuel } : prev));
+  }
+
   return (
-    <AuthContext.Provider value={{ user, accessToken, loading, requestMagicLink, completeLogin, logout }}>
+    <AuthContext.Provider
+      value={{ user, accessToken, loading, requestMagicLink, completeLogin, logout, setDefaultFuelTab }}
+    >
       {children}
     </AuthContext.Provider>
   );
