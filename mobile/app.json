@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "abasteceae",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.abasteceae.app"
@@ -41,7 +41,8 @@
         {
           "locationWhenInUsePermission": "O Abastece Aê usa sua localização para mostrar os postos mais próximos e calcular distâncias."
         }
-      ]
+      ],
+      "@rnmapbox/maps"
     ],
     "experiments": {
       "typedRoutes": true,
