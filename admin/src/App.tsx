@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { StationsPage } from "./StationsPage";
+import { ModerationPage } from "./ModerationPage";
 
 type Section = "postos" | "usuarios" | "moderacao" | "config";
 
@@ -51,7 +52,7 @@ function IconSettings() {
 const NAV_ITEMS: NavItem[] = [
   { id: "postos", label: "Postos", icon: <IconMapPin />, enabled: true },
   { id: "usuarios", label: "Usuários", icon: <IconUsers />, enabled: false },
-  { id: "moderacao", label: "Moderação", icon: <IconShield />, enabled: false },
+  { id: "moderacao", label: "Moderação", icon: <IconShield />, enabled: true },
   { id: "config", label: "Configurações", icon: <IconSettings />, enabled: false },
 ];
 
@@ -80,7 +81,10 @@ export function App() {
       </aside>
 
       <main className="main-content">
-        <div className="main-content-inner">{section === "postos" && <StationsPage />}</div>
+        <div className="main-content-inner">
+          {section === "postos" && <StationsPage />}
+          {section === "moderacao" && <ModerationPage />}
+        </div>
       </main>
     </div>
   );

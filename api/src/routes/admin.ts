@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { applyAcceptedPriceReport } from "../lib/applyPriceReport";
 
 type FuelType = "gasolina" | "etanol" | "diesel";
 const FUEL_TYPES: FuelType[] = ["gasolina", "etanol", "diesel"];
@@ -399,4 +400,103 @@ admin.get("/stations/:id/prices/history", async (c) => {
       changedAt: row.changed_at,
     })),
   });
+});
+
+interface PriceReportRow {
+  id: string;
+  gas_station_id: string;
+  station_name: string;
+  fuel_type: FuelType;
+  price: number;
+  pix_discount: number;
+  cash_discount: number;
+  reporter_email: string;
+  distance_from_station_m: number | null;
+  created_at: string;
+}
+
+admin.get("/price-reports", async (c) => {
+  const status = c.req.query("status") ?? "pending_review";
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT pr.id, pr.gas_station_id, gs.nome_fantasia as station_name, pr.fuel_type, pr.price,
+            pr.pix_discount, pr.cash_discount, u.email as reporter_email, pr.distance_from_station_m, pr.created_at
+     FROM price_reports pr
+     JOIN gas_stations gs ON gs.id = pr.gas_station_id
+     JOIN users u ON u.id = pr.reported_by_user_id
+     WHERE pr.status = ?
+     ORDER BY pr.created_at DESC`
+  )
+    .bind(status)
+    .all<PriceReportRow>();
+
+  return c.json({
+    reports: results.map((row) => ({
+      id: row.id,
+      gasStationId: row.gas_station_id,
+      stationName: row.station_name,
+      fuelType: row.fuel_type,
+      price: row.price,
+      pixDiscount: row.pix_discount === 1,
+      cashDiscount: row.cash_discount === 1,
+      reporterEmail: row.reporter_email,
+      distanceFromStationM: row.distance_from_station_m,
+      createdAt: row.created_at,
+    })),
+  });
+});
+
+admin.post("/price-reports/:id/approve", async (c) => {
+  const id = c.req.param("id");
+
+  const report = await c.env.DB.prepare(
+    "SELECT id, gas_station_id, fuel_type, price, pix_discount, cash_discount, status FROM price_reports WHERE id = ?"
+  )
+    .bind(id)
+    .first<{
+      id: string;
+      gas_station_id: string;
+      fuel_type: FuelType;
+      price: number;
+      pix_discount: number;
+      cash_discount: number;
+      status: string;
+    }>();
+
+  if (!report) {
+    return c.json({ error: "report não encontrado" }, 404);
+  }
+  if (report.status !== "pending_review") {
+    return c.json({ error: "report não está pendente de revisão" }, 400);
+  }
+
+  await applyAcceptedPriceReport(c.env.DB, {
+    gasStationId: report.gas_station_id,
+    fuelType: report.fuel_type,
+    price: report.price,
+    pixDiscount: report.pix_discount === 1,
+    cashDiscount: report.cash_discount === 1,
+    reportId: report.id,
+    changedBy: c.get("accessEmail") ?? "admin",
+  });
+
+  await c.env.DB.prepare("UPDATE price_reports SET status = 'accepted' WHERE id = ?").bind(id).run();
+
+  return c.json({ ok: true });
+});
+
+admin.post("/price-reports/:id/reject", async (c) => {
+  const id = c.req.param("id");
+
+  const result = await c.env.DB.prepare(
+    "UPDATE price_reports SET status = 'rejected_outlier' WHERE id = ? AND status = 'pending_review'"
+  )
+    .bind(id)
+    .run();
+
+  if (result.meta.changes === 0) {
+    return c.json({ error: "report não encontrado ou já processado" }, 404);
+  }
+
+  return c.json({ ok: true });
 });

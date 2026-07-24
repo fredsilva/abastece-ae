@@ -6,12 +6,12 @@ import { Camera, LineLayer, MapView, PointAnnotation, ShapeSource } from '@rnmap
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { fetchDrivingRoute, type DrivingRoute } from '@/lib/mapbox-directions';
-import type { Station } from '@/lib/api';
+import type { FuelType, Station } from '@/lib/api';
 import { formatDistance, formatDuration, formatPrice, formatRelativeTime } from '@/lib/format';
 
 export default function StationDetailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ station: string; userLat?: string; userLng?: string }>();
+  const params = useLocalSearchParams<{ station: string; fuel: FuelType; userLat?: string; userLng?: string }>();
   const station: Station = useMemo(() => JSON.parse(params.station), [params.station]);
   const userCoords = useMemo(() => {
     if (!params.userLat || !params.userLng) return null;
@@ -49,6 +49,18 @@ export default function StationDetailScreen() {
   function handleNavigate() {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}`;
     Linking.openURL(url);
+  }
+
+  function handleReportPrice() {
+    router.push({
+      pathname: '/report-price',
+      params: {
+        stationId: station.id,
+        stationName: station.nomeFantasia,
+        fuel: params.fuel,
+        currentPrice: String(station.price),
+      },
+    });
   }
 
   const pinColor = station.cheapest ? '#10b981' : '#3b82f6';
@@ -154,10 +166,16 @@ export default function StationDetailScreen() {
           </Text>
         )}
 
-        <TouchableOpacity style={styles.navigateButton} onPress={handleNavigate}>
-          <Ionicons name="navigate" size={18} color="#ffffff" />
-          <Text style={styles.navigateButtonText}>Navegar</Text>
-        </TouchableOpacity>
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={styles.reportButton} onPress={handleReportPrice}>
+            <Ionicons name="pricetag-outline" size={18} color="#3b82f6" />
+            <Text style={styles.reportButtonText}>Reportar preço</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navigateButton} onPress={handleNavigate}>
+            <Ionicons name="navigate" size={18} color="#ffffff" />
+            <Text style={styles.navigateButtonText}>Navegar</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -233,7 +251,22 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 13, color: '#6b7280' },
   address: { fontSize: 13, color: '#6b7280', marginTop: 8 },
 
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 16, marginBottom: 12 },
+  reportButton: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  reportButtonText: { color: '#3b82f6', fontSize: 15, fontWeight: '700' },
   navigateButton: {
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -241,8 +274,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#3b82f6',
     borderRadius: 14,
     paddingVertical: 14,
-    marginTop: 16,
-    marginBottom: 12,
   },
   navigateButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
 });

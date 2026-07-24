@@ -174,6 +174,7 @@ export default function HomeScreen() {
       pathname: '/station-detail',
       params: {
         station: JSON.stringify(station),
+        fuel: selectedFuel,
         ...(coords ? { userLat: String(coords.latitude), userLng: String(coords.longitude) } : {}),
       },
     });

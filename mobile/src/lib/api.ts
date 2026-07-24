@@ -104,6 +104,29 @@ export async function updateDefaultFuelTab(accessToken: string, defaultFuelTab: 
   await handle(res);
 }
 
+export interface ReportPriceInput {
+  gasStationId: string;
+  fuelType: FuelType;
+  price: number;
+  pixDiscount: boolean;
+  cashDiscount: boolean;
+  deviceId: string;
+  gpsLat?: number;
+  gpsLng?: number;
+}
+
+export async function reportPrice(
+  accessToken: string,
+  input: ReportPriceInput
+): Promise<{ id: string; status: "accepted" | "pending_review" }> {
+  const res = await fetch(`${API_BASE}/price-reports`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(input),
+  });
+  return handle(res);
+}
+
 export async function logoutSession(refreshToken: string): Promise<void> {
   const res = await fetch(`${API_BASE}/auth/logout`, {
     method: "POST",

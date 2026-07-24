@@ -56,3 +56,16 @@ export interface PriceHistoryEntry {
   changedBy: string | null;
   changedAt: string;
 }
+
+export interface PriceReport {
+  id: string;
+  gasStationId: string;
+  stationName: string;
+  fuelType: FuelType;
+  price: number;
+  pixDiscount: boolean;
+  cashDiscount: boolean;
+  reporterEmail: string;
+  distanceFromStationM: number | null;
+  createdAt: string;
+}
