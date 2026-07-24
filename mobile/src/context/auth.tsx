@@ -4,6 +4,7 @@ import { secureStorage } from "@/lib/secure-storage";
 import {
   type AuthUser,
   type FuelType,
+  deleteAccount as apiDeleteAccount,
   getMe,
   logoutSession,
   refreshSession,
@@ -21,6 +22,7 @@ interface AuthContextValue {
   requestMagicLink: (email: string) => Promise<void>;
   completeLogin: (token: string) => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   setDefaultFuelTab: (fuel: FuelType) => Promise<void>;
 }
 
@@ -78,9 +80,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => (prev ? { ...prev, defaultFuelTab: fuel } : prev));
   }
 
+  async function deleteAccount() {
+    if (!accessToken) return;
+    await apiDeleteAccount(accessToken);
+    await secureStorage.deleteItemAsync(REFRESH_TOKEN_KEY);
+    setAccessToken(null);
+    setUser(null);
+  }
+
   return (
     <AuthContext.Provider
-      value={{ user, accessToken, loading, requestMagicLink, completeLogin, logout, setDefaultFuelTab }}
+      value={{ user, accessToken, loading, requestMagicLink, completeLogin, logout, deleteAccount, setDefaultFuelTab }}
     >
       {children}
     </AuthContext.Provider>

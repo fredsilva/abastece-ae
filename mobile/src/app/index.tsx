@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -38,7 +37,7 @@ const SORT_OPTIONS: { key: SortMode; label: string; icon: keyof typeof Ionicons.
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user, logout, setDefaultFuelTab } = useAuth();
+  const { user, setDefaultFuelTab } = useAuth();
   const [selectedFuel, setSelectedFuel] = useState<FuelType>(user?.defaultFuelTab ?? 'gasolina');
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [stations, setStations] = useState<Station[]>([]);
@@ -51,7 +50,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } = await Location.getForegroundPermissionsAsync();
       if (status !== 'granted') return;
       try {
         const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -99,10 +98,7 @@ export default function HomeScreen() {
   }
 
   function handleProfilePress() {
-    Alert.alert(user?.email ?? 'Conta', undefined, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Sair', style: 'destructive', onPress: logout },
-    ]);
+    router.push('/account');
   }
 
   function handleStationPress(station: Station) {

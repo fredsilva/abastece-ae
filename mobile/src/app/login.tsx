@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -8,6 +9,7 @@ import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 
 export default function LoginScreen() {
+  const router = useRouter();
   const { requestMagicLink } = useAuth();
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
@@ -69,6 +71,12 @@ export default function LoginScreen() {
 
         <TouchableOpacity style={styles.button} disabled={sending || !email.includes('@')} onPress={handleSubmit}>
           <ThemedText style={styles.buttonText}>{sending ? 'Enviando...' : 'Enviar link de acesso'}</ThemedText>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push('/privacy-policy')}>
+          <ThemedText type="link" themeColor="textSecondary" style={styles.text}>
+            Ao continuar, você concorda com nossa Política de Privacidade
+          </ThemedText>
         </TouchableOpacity>
       </SafeAreaView>
     </ThemedView>

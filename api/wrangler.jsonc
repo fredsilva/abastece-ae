@@ -26,6 +26,12 @@
       "id": "1e85590b99d14426bb8577d9b836cbcc"
     }
   ],
+  // "0 6 * * *" (diário, 06:00 UTC): decaimento de confidence_score + limpeza de sessões
+  // expiradas. "0 7 * * 1" (segunda-feira, 07:00 UTC): recompute de gas_station_rating_summary.
+  // Ver src/index.ts (scheduled) e PLANO-MVP.md, seção "Anti-fraude e qualidade de dados".
+  "triggers": {
+    "crons": ["0 6 * * *", "0 7 * * 1"]
+  },
   // Serve o build do painel admin (admin/dist) no mesmo domínio do Worker, para o
   // painel e a API ficarem no mesmo host — evita o problema de sessão do Cloudflare
   // Access não valer entre domínios diferentes (pages.dev x workers.dev) em chamadas

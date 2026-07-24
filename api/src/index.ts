@@ -9,6 +9,7 @@ import { ratings } from "./routes/ratings";
 import { favorites } from "./routes/favorites";
 import { pushTokens } from "./routes/pushTokens";
 import { cfAccess } from "./middleware/cfAccess";
+import { cleanupExpiredSessions, decayConfidenceScores, recomputeAllRatingSummaries } from "./lib/cronJobs";
 
 // Painel admin e API ficam no mesmo domínio (Worker serve o build do admin como static
 // assets — ver wrangler.jsonc), então não há requisições cross-origin a proteger com CORS.
@@ -47,4 +48,22 @@ app.get("/health", async (c) => {
   });
 });
 
-export default app;
+// Cron Triggers (ver wrangler.jsonc): decaimento diário de confiança + limpeza de sessões
+// expiradas roda toda madrugada; recompute semanal de rating summary (mais custoso, depende
+// da média da cidade) roda uma vez por semana. Refresh da ANP (anp_reference_prices) fica de
+// fora dos crons de propósito — a fonte exige download manual do CSV mais recente a cada mês
+// (nomeação inconsistente, sem URL estável) e QA amostral, então continua um passo manual via
+// scripts/seed-anp.ts (ver PLANO-MVP.md).
+const DAILY_CRON = "0 6 * * *";
+const WEEKLY_CRON = "0 7 * * 1";
+
+export default {
+  fetch: app.fetch,
+  async scheduled(controller, env, ctx) {
+    if (controller.cron === DAILY_CRON) {
+      ctx.waitUntil(Promise.all([decayConfidenceScores(env.DB), cleanupExpiredSessions(env.DB)]));
+    } else if (controller.cron === WEEKLY_CRON) {
+      ctx.waitUntil(recomputeAllRatingSummaries(env.DB));
+    }
+  },
+} satisfies ExportedHandler<Env>;

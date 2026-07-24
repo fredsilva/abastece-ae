@@ -7,6 +7,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
+import { LOCATION_CONSENT_SEEN_KEY } from '@/app/location-consent';
+import { secureStorage } from '@/lib/secure-storage';
 
 export default function AuthCallbackScreen() {
   const { token } = useLocalSearchParams<{ token?: string }>();
@@ -20,7 +22,10 @@ export default function AuthCallbackScreen() {
       return;
     }
     completeLogin(token)
-      .then(() => router.replace('/'))
+      .then(async () => {
+        const consentSeen = await secureStorage.getItemAsync(LOCATION_CONSENT_SEEN_KEY);
+        router.replace(consentSeen ? '/' : '/location-consent');
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'Link inválido ou expirado.'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);

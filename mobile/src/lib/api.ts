@@ -219,6 +219,14 @@ export async function registerPushToken(
   await handle(res);
 }
 
+export async function deleteAccount(accessToken: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  await handle(res);
+}
+
 export async function logoutSession(refreshToken: string): Promise<void> {
   const res = await fetch(`${API_BASE}/auth/logout`, {
     method: "POST",

@@ -193,6 +193,28 @@ auth.put("/me/preferences", requireUser, async (c) => {
   return c.json({ ok: true, defaultFuelTab });
 });
 
+// LGPD — exclusão de conta (Etapa 9). Anonimiza a linha em users (em vez de apagá-la) para
+// preservar a integridade referencial de price_reports/fill_ups/ratings, cujo histórico
+// agregado outros usuários continuam enxergando (mesmo padrão de "conta excluída" usado por
+// apps de crowdsourcing similares). Dados só de uso pessoal (sessões, identidades de login,
+// favoritos, push token) são apagados de verdade.
+auth.delete("/me", requireUser, async (c) => {
+  const userId = c.get("userId");
+  const now = new Date().toISOString();
+
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `UPDATE users SET email = ?, email_verified = 0, name = NULL, avatar_url = NULL, deleted_at = ? WHERE id = ?`
+    ).bind(`deleted-${userId}@abasteceae.invalid`, now, userId),
+    c.env.DB.prepare("DELETE FROM auth_identities WHERE user_id = ?").bind(userId),
+    c.env.DB.prepare("DELETE FROM auth_sessions WHERE user_id = ?").bind(userId),
+    c.env.DB.prepare("DELETE FROM push_tokens WHERE user_id = ?").bind(userId),
+    c.env.DB.prepare("DELETE FROM favorites WHERE user_id = ?").bind(userId),
+  ]);
+
+  return c.json({ ok: true });
+});
+
 async function createSession(db: D1Database, userId: string): Promise<{ refreshToken: string }> {
   const refreshToken = generateToken(32);
   const refreshTokenHash = await hashToken(refreshToken);
