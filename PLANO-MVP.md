@@ -233,13 +233,19 @@ overall_score = 0.5 * price_score + 0.3 * distance_score + 0.2 * rating_score
 9. Avaliações só existem atreladas a um `fill_up` real (geofence confirmado) — bloqueia review-bombing por construção.
 10. **Moderação manual:** a fila `pending_review` pode ser aprovada/rejeitada no painel admin, além da corroboração automática.
 
-### Geofencing em background ("Abasteceu?")
+### "Abasteceu?" — gatilho manual em primeiro plano (decisão da Etapa 6)
+
+A Etapa 6 implementa o fluxo de confirmação de abastecimento **sem geofencing em background**: um botão "Abasteci aqui" na tela do posto (`station-detail.tsx`) dispara o mesmo resultado que o gatilho automático faria — combustível/preço/litros → 3 estrelas (Preço/Qualidade/Atendimento) → `ratings` → recalcula `gas_station_rating_summary` —, checando a distância GPS **no momento do toque** contra a mesma regra de confiança do plano original (≤150m do posto; fora disso o backend rejeita com 400). `POST /fill-ups` grava `fill_ups` + um `price_reports` (`report_type='fill_up'`, sujeito às mesmas checagens de sanidade/outlier/rate-limit do report manual) e `POST /ratings` grava a avaliação e recalcula a média bayesiana do posto.
+
+Motivo da mudança de escopo: a versão com geofencing nativo em background (abaixo) é a etapa mais arriscada tecnicamente do MVP — exige permissão "Always Allow" (fricção de usuário + risco de rejeição na App Store sem uma tela de priming bem feita) e só é totalmente testável em build EAS real, não em dev client comum. A versão manual entrega o mesmo valor central (registro de abastecimento com prova de GPS + avaliação) sem essa complexidade, e reaproveita integralmente o formulário e o fluxo de avaliação — o geofencing automático pode ser adicionado depois como um gatilho adicional para a mesma tela, sem refazer nada construído agora.
+
+### Geofencing em background (refinamento futuro, fora desta etapa)
 
 - `expo-location` (`Location.startGeofencingAsync`) + `expo-task-manager` — monitoramento nativo de região do SO, não GPS polling contínuo.
 - **Limite duro do iOS: 20 regiões monitoradas por app** — exige janela deslizante (monitorar só os ~20 postos mais próximos, realocando com significant-location-change). Android é mais permissivo (~100 geofences), mas sofre com Doze/otimização agressiva de fabricantes (Xiaomi/Huawei).
 - Raio recomendado: ~100–150m por geofence.
 - **iOS:** fluxo em duas etapas ("When In Use" → "Always Allow") com tela de priming própria antes do prompt do sistema — sem isso, risco real de rejeição na App Store Review (Guideline 5.1.1/2.5.4). **Android 10+:** `ACCESS_BACKGROUND_LOCATION` separado + declaração no Play Console.
-- Fluxo: ENTER da geofence → notificação local (`expo-notifications`) → modal "Abasteceu?" → Sim → registra `fill_ups` + `price_reports` → tela de 3 estrelas (Preço/Qualidade/Atendimento) → grava `ratings` → recalcula `gas_station_rating_summary`. `geofence_events` aplica cooldown (~2h) por posto.
+- Fluxo alvo: ENTER da geofence → notificação local (`expo-notifications`) → mesmo modal "Abasteceu?" já implementado na Etapa 6. `geofence_events` (tabela já existe no schema) aplica cooldown (~2h) por posto e registra a taxa de resposta ao prompt.
 - Todo o fluxo exige EAS Build/dev client — Expo Go não suporta essas APIs nativas em background.
 
 ### Favoritos e notificação de queda de preço
@@ -289,7 +295,7 @@ A ANP publica (1) registro de revendedores autorizados (CNPJ, endereço, bandeir
 6. Badges "Mais barato" e "Desconto no Pix ou Dinheiro".
 7. Tap no posto → mapa com rota traçada (Mapbox Directions).
 8. Botão "Navegar" → deep-link para o app de navegação nativo do usuário.
-9. Geofencing → "Abasteceu?" → combustível/preço/litros → 3 avaliações por estrela → nota do posto = média das 3.
+9. "Abasteceu?" (gatilho manual com confirmação de GPS na Etapa 6, geofencing automático como refinamento futuro) → combustível/preço/litros → 3 avaliações por estrela → nota do posto = média bayesiana das 3.
 10. "Reportar preço" sem abastecer.
 11. **Favoritos** + **notificação de queda de preço** em posto favoritado.
 12. **Painel admin:** CRUD de postos, visualização/moderação de usuários, fila de aprovação de reports, métricas básicas, config do ranking.
@@ -329,9 +335,9 @@ Tap no posto → mapa com rota traçada (Mapbox Directions). Botão "Navegar" �
 `POST /price-reports` com sanity check, rate limiting D1, outlier detection. Tela "reportar preço" no app. Fila `pending_review` no admin (aprovar/rejeitar).
 **Teste:** reportar preço no app, ver refletido na lista (se dentro dos limites) ou pendente na fila do admin (se outlier).
 
-### Etapa 6 — Geofencing, "Abasteceu?" e avaliações
-`expo-location`/`expo-task-manager`, notificação local, modal "Abasteceu?", registro de `fill_ups`, 3 estrelas (Preço/Qualidade/Atendimento), recompute de `gas_station_rating_summary`.
-**Teste:** simular GPS entrando na geofence (mock location no simulador/emulador), confirmar prompt, registrar abastecimento, avaliar, ver a nota do posto atualizar.
+### Etapa 6 — "Abasteceu?" e avaliações
+Botão "Abasteci aqui" na tela do posto (gatilho manual em primeiro plano — ver decisão de escopo acima), `POST /fill-ups` com checagem de proximidade GPS (≤150m) + as mesmas checagens de sanidade/outlier/rate-limit dos reports manuais, tela de 3 estrelas (Preço/Qualidade/Atendimento), `POST /ratings` com recompute de `gas_station_rating_summary` (média bayesiana). Geofencing automático em background fica documentado como refinamento futuro.
+**Teste:** no posto (ou com localização simulada dentro de 150m), tocar "Abasteci aqui", preencher preço/litros, avaliar; longe do posto, confirmar que o backend rejeita; ver a nota do posto atualizar na lista após avaliar.
 
 ### Etapa 7 — Favoritos e notificação de queda de preço
 Favoritar/desfavoritar posto no app. Registro de push token (`expo-notifications`). Disparo de push ao detectar queda de preço em posto favoritado.

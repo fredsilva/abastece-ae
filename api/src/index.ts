@@ -4,6 +4,8 @@ import { admin } from "./routes/admin";
 import { auth } from "./routes/auth";
 import { stations } from "./routes/stations";
 import { priceReports } from "./routes/priceReports";
+import { fillUps } from "./routes/fillUps";
+import { ratings } from "./routes/ratings";
 import { cfAccess } from "./middleware/cfAccess";
 
 // Painel admin e API ficam no mesmo domínio (Worker serve o build do admin como static
@@ -18,12 +20,16 @@ const app = new Hono<{ Bindings: Env }>();
 app.use("/auth/*", cors({ origin: "*" }));
 app.use("/stations/*", cors({ origin: "*" }));
 app.use("/price-reports/*", cors({ origin: "*" }));
+app.use("/fill-ups/*", cors({ origin: "*" }));
+app.use("/ratings/*", cors({ origin: "*" }));
 
 app.use("/admin/*", cfAccess);
 app.route("/admin", admin);
 app.route("/auth", auth);
 app.route("/stations", stations);
 app.route("/price-reports", priceReports);
+app.route("/fill-ups", fillUps);
+app.route("/ratings", ratings);
 
 app.get("/health", async (c) => {
   const dbCheck = await c.env.DB.prepare("SELECT 1 AS ok").first<{ ok: number }>();

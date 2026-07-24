@@ -27,6 +27,18 @@
   "assets": {
     "directory": "../admin/dist",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/admin/*", "/health", "/auth/*", "/stations", "/stations/*", "/price-reports", "/price-reports/*"]
+    "run_worker_first": [
+      "/admin/*",
+      "/health",
+      "/auth/*",
+      "/stations",
+      "/stations/*",
+      "/price-reports",
+      "/price-reports/*",
+      "/fill-ups",
+      "/fill-ups/*",
+      "/ratings",
+      "/ratings/*"
+    ]
   }
 }

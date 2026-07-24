@@ -127,6 +127,46 @@ export async function reportPrice(
   return handle(res);
 }
 
+export interface FillUpInput {
+  gasStationId: string;
+  fuelType: FuelType;
+  price: number;
+  liters: number;
+  pixDiscount: boolean;
+  cashDiscount: boolean;
+  deviceId: string;
+  gpsLat: number;
+  gpsLng: number;
+}
+
+export async function submitFillUp(
+  accessToken: string,
+  input: FillUpInput
+): Promise<{ fillUpId: string; status: "accepted" | "pending_review" }> {
+  const res = await fetch(`${API_BASE}/fill-ups`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(input),
+  });
+  return handle(res);
+}
+
+export interface RatingInput {
+  fillUpId: string;
+  priceStars: number;
+  qualityStars: number;
+  serviceStars: number;
+}
+
+export async function submitRating(accessToken: string, input: RatingInput): Promise<{ id: string; gasStationId: string }> {
+  const res = await fetch(`${API_BASE}/ratings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(input),
+  });
+  return handle(res);
+}
+
 export async function logoutSession(refreshToken: string): Promise<void> {
   const res = await fetch(`${API_BASE}/auth/logout`, {
     method: "POST",

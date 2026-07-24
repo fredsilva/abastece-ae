@@ -63,6 +63,18 @@ export default function StationDetailScreen() {
     });
   }
 
+  function handleFillUp() {
+    router.push({
+      pathname: '/fill-up',
+      params: {
+        stationId: station.id,
+        stationName: station.nomeFantasia,
+        fuel: params.fuel,
+        currentPrice: String(station.price),
+      },
+    });
+  }
+
   const pinColor = station.cheapest ? '#10b981' : '#3b82f6';
   const distance = formatDistance(station.distanceMeters);
 
@@ -166,13 +178,18 @@ export default function StationDetailScreen() {
           </Text>
         )}
 
+        <TouchableOpacity style={styles.fillUpButton} onPress={handleFillUp}>
+          <MaterialCommunityIcons name="gas-station" size={20} color="#ffffff" />
+          <Text style={styles.fillUpButtonText}>Abasteci aqui</Text>
+        </TouchableOpacity>
+
         <View style={styles.actionRow}>
           <TouchableOpacity style={styles.reportButton} onPress={handleReportPrice}>
             <Ionicons name="pricetag-outline" size={18} color="#3b82f6" />
             <Text style={styles.reportButtonText}>Reportar preço</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.navigateButton} onPress={handleNavigate}>
-            <Ionicons name="navigate" size={18} color="#ffffff" />
+            <Ionicons name="navigate-outline" size={18} color="#3b82f6" />
             <Text style={styles.navigateButtonText}>Navegar</Text>
           </TouchableOpacity>
         </View>
@@ -251,7 +268,19 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 13, color: '#6b7280' },
   address: { fontSize: 13, color: '#6b7280', marginTop: 8 },
 
-  actionRow: { flexDirection: 'row', gap: 10, marginTop: 16, marginBottom: 12 },
+  fillUpButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#3b82f6',
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginTop: 16,
+  },
+  fillUpButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
+
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 10, marginBottom: 12 },
   reportButton: {
     flex: 1,
     flexDirection: 'row',
@@ -270,10 +299,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#3b82f6',
+    gap: 6,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#3b82f6',
     borderRadius: 14,
     paddingVertical: 14,
   },
-  navigateButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
+  navigateButtonText: { color: '#3b82f6', fontSize: 15, fontWeight: '700' },
 });
