@@ -20,6 +20,12 @@
       "migrations_dir": "./migrations"
     }
   ],
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "1e85590b99d14426bb8577d9b836cbcc"
+    }
+  ],
   // Serve o build do painel admin (admin/dist) no mesmo domínio do Worker, para o
   // painel e a API ficarem no mesmo host — evita o problema de sessão do Cloudflare
   // Access não valer entre domínios diferentes (pages.dev x workers.dev) em chamadas

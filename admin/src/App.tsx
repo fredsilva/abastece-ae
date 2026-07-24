@@ -2,8 +2,11 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { StationsPage } from "./StationsPage";
 import { ModerationPage } from "./ModerationPage";
+import { UsersPage } from "./pages/UsersPage";
+import { MetricsPage } from "./pages/MetricsPage";
+import { ConfigPage } from "./pages/ConfigPage";
 
-type Section = "postos" | "usuarios" | "moderacao" | "config";
+type Section = "postos" | "usuarios" | "metricas" | "moderacao" | "config";
 
 interface NavItem {
   id: Section;
@@ -49,11 +52,22 @@ function IconSettings() {
   );
 }
 
+function IconBarChart() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="2" x2="12" y2="22" />
+      <path d="M17 8v12" />
+      <path d="M7 14v8" />
+    </svg>
+  );
+}
+
 const NAV_ITEMS: NavItem[] = [
   { id: "postos", label: "Postos", icon: <IconMapPin />, enabled: true },
-  { id: "usuarios", label: "Usuários", icon: <IconUsers />, enabled: false },
+  { id: "usuarios", label: "Usuários", icon: <IconUsers />, enabled: true },
+  { id: "metricas", label: "Métricas", icon: <IconBarChart />, enabled: true },
   { id: "moderacao", label: "Moderação", icon: <IconShield />, enabled: true },
-  { id: "config", label: "Configurações", icon: <IconSettings />, enabled: false },
+  { id: "config", label: "Configurações", icon: <IconSettings />, enabled: true },
 ];
 
 export function App() {
@@ -83,7 +97,10 @@ export function App() {
       <main className="main-content">
         <div className="main-content-inner">
           {section === "postos" && <StationsPage />}
+          {section === "usuarios" && <UsersPage />}
+          {section === "metricas" && <MetricsPage />}
           {section === "moderacao" && <ModerationPage />}
+          {section === "config" && <ConfigPage />}
         </div>
       </main>
     </div>

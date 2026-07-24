@@ -503,3 +503,111 @@ admin.post("/price-reports/:id/reject", async (c) => {
 
   return c.json({ ok: true });
 });
+
+interface UserRow {
+  id: string;
+  email: string;
+  trust_score: number;
+  status: string;
+  created_at: string;
+}
+
+admin.get("/users", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, email, trust_score, status, created_at FROM users ORDER BY created_at DESC`
+  ).all<UserRow>();
+
+  return c.json({
+    users: results.map((row) => ({
+      id: row.id,
+      email: row.email,
+      trustScore: row.trust_score,
+      status: row.status,
+      createdAt: row.created_at,
+    })),
+  });
+});
+
+admin.post("/users/:id/ban", async (c) => {
+  const id = c.req.param("id");
+  const result = await c.env.DB.prepare("UPDATE users SET status = 'banned' WHERE id = ?").bind(id).run();
+  if (result.meta.changes === 0) {
+    return c.json({ error: "usuário não encontrado" }, 404);
+  }
+  return c.json({ ok: true });
+});
+
+admin.post("/users/:id/unban", async (c) => {
+  const id = c.req.param("id");
+  const result = await c.env.DB.prepare("UPDATE users SET status = 'active' WHERE id = ?").bind(id).run();
+  if (result.meta.changes === 0) {
+    return c.json({ error: "usuário não encontrado" }, 404);
+  }
+  return c.json({ ok: true });
+});
+
+admin.get("/metrics", async (c) => {
+  const [stationsCount, usersCount, reportsCount, fillUpsCount, activeUsersCount, verifiedStationsCount] = await Promise.all([
+    c.env.DB.prepare("SELECT COUNT(*) as count FROM gas_stations WHERE status = 'active'").first<{ count: number }>(),
+    c.env.DB.prepare("SELECT COUNT(*) as count FROM users WHERE status = 'active'").first<{ count: number }>(),
+    c.env.DB.prepare("SELECT COUNT(*) as count FROM price_reports").first<{ count: number }>(),
+    c.env.DB.prepare("SELECT COUNT(*) as count FROM fill_ups").first<{ count: number }>(),
+    c.env.DB.prepare(
+      "SELECT COUNT(DISTINCT user_id) as count FROM fill_ups WHERE created_at > datetime('now', '-7 days')"
+    ).first<{ count: number }>(),
+    c.env.DB.prepare("SELECT COUNT(*) as count FROM gas_stations WHERE verified = 1 AND status = 'active'")
+      .first<{ count: number }>(),
+  ]);
+
+  return c.json({
+    stationsCount: stationsCount?.count ?? 0,
+    usersCount: usersCount?.count ?? 0,
+    reportsCount: reportsCount?.count ?? 0,
+    fillUpsCount: fillUpsCount?.count ?? 0,
+    activeUsersCount: activeUsersCount?.count ?? 0,
+    verifiedStationsCount: verifiedStationsCount?.count ?? 0,
+  });
+});
+
+admin.get("/config", async (c) => {
+  const [weightsData, boundsData] = await Promise.all([
+    c.env.KV.get("config:ranking_weights"),
+    c.env.KV.get("config:price_bounds"),
+  ]);
+
+  const defaultWeights = { price: 0.5, distance: 0.3, rating: 0.2 };
+  const defaultBounds = { min: 1, max: 15 };
+
+  return c.json({
+    rankingWeights: weightsData ? JSON.parse(weightsData) : defaultWeights,
+    priceBounds: boundsData ? JSON.parse(boundsData) : defaultBounds,
+  });
+});
+
+admin.put("/config", async (c) => {
+  const body = await c.req.json<{
+    rankingWeights?: { price: number; distance: number; rating: number };
+    priceBounds?: { min: number; max: number };
+  }>();
+
+  if (body.rankingWeights) {
+    const { price, distance, rating } = body.rankingWeights;
+    if (typeof price !== "number" || typeof distance !== "number" || typeof rating !== "number") {
+      return c.json({ error: "rankingWeights deve conter price, distance, rating (números)" }, 400);
+    }
+    if (Math.abs(price + distance + rating - 1) > 0.001) {
+      return c.json({ error: "soma dos weights deve ser 1.0" }, 400);
+    }
+    await c.env.KV.put("config:ranking_weights", JSON.stringify(body.rankingWeights));
+  }
+
+  if (body.priceBounds) {
+    const { min, max } = body.priceBounds;
+    if (typeof min !== "number" || typeof max !== "number" || min >= max) {
+      return c.json({ error: "priceBounds: min e max devem ser números, min < max" }, 400);
+    }
+    await c.env.KV.put("config:price_bounds", JSON.stringify(body.priceBounds));
+  }
+
+  return c.json({ ok: true });
+});

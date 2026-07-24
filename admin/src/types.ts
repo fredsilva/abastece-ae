@@ -69,3 +69,36 @@ export interface PriceReport {
   distanceFromStationM: number | null;
   createdAt: string;
 }
+
+export interface User {
+  id: string;
+  email: string;
+  trustScore: number;
+  status: "active" | "shadow_banned" | "banned";
+  createdAt: string;
+}
+
+export interface RankingWeights {
+  price: number;
+  distance: number;
+  rating: number;
+}
+
+export interface PriceBounds {
+  min: number;
+  max: number;
+}
+
+export interface Config {
+  rankingWeights: RankingWeights;
+  priceBounds: PriceBounds;
+}
+
+export interface Metrics {
+  stationsCount: number;
+  usersCount: number;
+  reportsCount: number;
+  fillUpsCount: number;
+  activeUsersCount: number;
+  verifiedStationsCount: number;
+}

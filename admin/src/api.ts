@@ -1,5 +1,5 @@
 import { API_BASE } from "./config";
-import type { PriceHistoryEntry, PriceReport, Station, StationInput, StationPricesInput } from "./types";
+import type { Config, Metrics, PriceHistoryEntry, PriceReport, Station, StationInput, StationPricesInput, User } from "./types";
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -92,6 +92,54 @@ export async function rejectPriceReport(id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/admin/price-reports/${id}/reject`, {
     method: "POST",
     credentials: "include",
+  });
+  await handle(res);
+}
+
+export async function listUsers(): Promise<User[]> {
+  const res = await fetch(`${API_BASE}/admin/users`, {
+    credentials: "include",
+  });
+  const data = await handle<{ users: User[] }>(res);
+  return data.users;
+}
+
+export async function banUser(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/users/${id}/ban`, {
+    method: "POST",
+    credentials: "include",
+  });
+  await handle(res);
+}
+
+export async function unbanUser(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/users/${id}/unban`, {
+    method: "POST",
+    credentials: "include",
+  });
+  await handle(res);
+}
+
+export async function getMetrics(): Promise<Metrics> {
+  const res = await fetch(`${API_BASE}/admin/metrics`, {
+    credentials: "include",
+  });
+  return handle(res);
+}
+
+export async function getConfig(): Promise<Config> {
+  const res = await fetch(`${API_BASE}/admin/config`, {
+    credentials: "include",
+  });
+  return handle(res);
+}
+
+export async function updateConfig(patch: Partial<Config>): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/config`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
   });
   await handle(res);
 }
