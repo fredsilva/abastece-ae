@@ -321,9 +321,9 @@ Magic link + Google + Apple no Worker; telas de login no Expo.
 `GET /stations` com ranking + cache KV; tela Home com mapa Mapbox, lista de postos, 3 abas (aba padrão configurável nas preferências), badges "Mais barato" e "Desconto no Pix ou Dinheiro".
 **Teste:** com localização real, ver os postos da cidade ranqueados corretamente; trocar de aba; mudar aba padrão.
 
-### Etapa 4 — Rota e navegação
-Tap no posto → mapa com rota traçada (Mapbox Directions). Botão "Navegar" → deep link para Google Maps/Waze/Apple Maps.
-**Teste:** tocar num posto da lista, ver rota desenhada; tocar Navegar, confirmar abertura do app nativo de navegação.
+### Etapa 4 — Rota, navegação e ordenação da lista
+Tap no posto → mapa com rota traçada (Mapbox Directions). Botão "Navegar" → deep link para Google Maps/Waze/Apple Maps. Controle de ordenação da lista com 3 modos: **Preço** (menor primeiro), **Proximidade** (menor distância primeiro) e **Melhor custo-benefício** (combina preço + distância — reaproveita o `overall_score` já calculado no ranking da Etapa 3). Componente de seleção precisa ser bem cuidado visualmente, não só funcional — é uma decisão de UX que o usuário usa toda vez que abre a lista.
+**Teste:** tocar num posto da lista, ver rota desenhada; tocar Navegar, confirmar abertura do app nativo de navegação; trocar entre os 3 modos de ordenação e confirmar que a lista reordena corretamente em cada um.
 
 ### Etapa 5 — Reportar preço + moderação básica
 `POST /price-reports` com sanity check, rate limiting D1, outlier detection. Tela "reportar preço" no app. Fila `pending_review` no admin (aprovar/rejeitar).

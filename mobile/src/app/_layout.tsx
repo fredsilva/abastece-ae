@@ -10,9 +10,9 @@ function RootNavigation() {
 
   useEffect(() => {
     if (loading) return;
-    const inAuthFlow = segments[0] === 'login' || segments[0] === 'auth-callback';
+    const inAuthFlow = segments[0] === 'welcome' || segments[0] === 'login' || segments[0] === 'auth-callback';
     if (!user && !inAuthFlow) {
-      router.replace('/login');
+      router.replace('/welcome');
     } else if (user && inAuthFlow) {
       router.replace('/');
     }
