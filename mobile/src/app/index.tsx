@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -16,6 +28,14 @@ const FUEL_TABS: { key: FuelType; label: string }[] = [
   { key: 'diesel', label: 'Diesel' },
 ];
 
+type SortMode = 'best' | 'price' | 'distance';
+
+const SORT_OPTIONS: { key: SortMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'best', label: 'Melhor custo-benefício', icon: 'sparkles-outline' },
+  { key: 'price', label: 'Preço', icon: 'pricetag-outline' },
+  { key: 'distance', label: 'Proximidade', icon: 'location-outline' },
+];
+
 const ICON_COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#fb923c'];
 
 function stationIconColor(id: string): string {
@@ -24,13 +44,21 @@ function stationIconColor(id: string): string {
   return ICON_COLORS[hash % ICON_COLORS.length];
 }
 
-function StationCard({ station, cheapestPrice }: { station: Station; cheapestPrice: number }) {
+function StationCard({
+  station,
+  cheapestPrice,
+  onPress,
+}: {
+  station: Station;
+  cheapestPrice: number;
+  onPress: () => void;
+}) {
   const distance = formatDistance(station.distanceMeters);
   const iconColor = useMemo(() => stationIconColor(station.id), [station.id]);
   const hasRating = station.ratingsCount >= 10 && station.ratingAvg !== null;
 
   return (
-    <View style={[styles.card, station.cheapest && styles.cardCheapest]}>
+    <TouchableOpacity style={[styles.card, station.cheapest && styles.cardCheapest]} onPress={onPress}>
       <View style={[styles.iconCircle, { backgroundColor: iconColor }]}>
         <MaterialCommunityIcons name="gas-station" size={18} color="#ffffff" />
       </View>
@@ -68,11 +96,12 @@ function StationCard({ station, cheapestPrice }: { station: Station; cheapestPri
       </View>
 
       <Ionicons name="chevron-forward" size={18} color="#d1d5db" />
-    </View>
+    </TouchableOpacity>
   );
 }
 
 export default function HomeScreen() {
+  const router = useRouter();
   const { user, logout, setDefaultFuelTab } = useAuth();
   const [selectedFuel, setSelectedFuel] = useState<FuelType>(user?.defaultFuelTab ?? 'gasolina');
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -81,6 +110,8 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settingDefault, setSettingDefault] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>('best');
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -138,12 +169,30 @@ export default function HomeScreen() {
     ]);
   }
 
+  function handleStationPress(station: Station) {
+    router.push({
+      pathname: '/station-detail',
+      params: {
+        station: JSON.stringify(station),
+        ...(coords ? { userLat: String(coords.latitude), userLng: String(coords.longitude) } : {}),
+      },
+    });
+  }
+
   const showSetDefault = useMemo(() => user !== null && user.defaultFuelTab !== selectedFuel, [user, selectedFuel]);
   const cheapestPrice = useMemo(
     () => (stations.length > 0 ? Math.min(...stations.map((s) => s.price)) : 0),
     [stations]
   );
   const cityLabel = stations[0] ? `${stations[0].city} - ${stations[0].state}` : null;
+  const sortedStations = useMemo(() => {
+    if (sortMode === 'price') return [...stations].sort((a, b) => a.price - b.price);
+    if (sortMode === 'distance') {
+      return [...stations].sort((a, b) => (a.distanceMeters ?? Infinity) - (b.distanceMeters ?? Infinity));
+    }
+    return stations;
+  }, [stations, sortMode]);
+  const sortLabel = SORT_OPTIONS.find((opt) => opt.key === sortMode)!.label;
 
   const listHeader = (
     <View>
@@ -190,6 +239,12 @@ export default function HomeScreen() {
           <Text style={styles.setDefaultText}>{settingDefault ? 'Salvando...' : 'Definir como aba padrão'}</Text>
         </TouchableOpacity>
       )}
+
+      <TouchableOpacity style={styles.sortButton} onPress={() => setSortMenuOpen(true)}>
+        <Ionicons name="swap-vertical-outline" size={14} color="#3b82f6" />
+        <Text style={styles.sortButtonText}>Ordenar: {sortLabel}</Text>
+        <Ionicons name="chevron-down" size={14} color="#3b82f6" />
+      </TouchableOpacity>
     </View>
   );
 
@@ -208,9 +263,11 @@ export default function HomeScreen() {
           </View>
         ) : (
           <FlatList
-            data={stations}
+            data={sortedStations}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <StationCard station={item} cheapestPrice={cheapestPrice} />}
+            renderItem={({ item }) => (
+              <StationCard station={item} cheapestPrice={cheapestPrice} onPress={() => handleStationPress(item)} />
+            )}
             ListHeaderComponent={listHeader}
             ListEmptyComponent={
               <Text style={styles.emptyText}>Nenhum posto com preço de {selectedFuel} cadastrado ainda.</Text>
@@ -220,6 +277,31 @@ export default function HomeScreen() {
           />
         )}
       </SafeAreaView>
+
+      <Modal visible={sortMenuOpen} transparent animationType="fade" onRequestClose={() => setSortMenuOpen(false)}>
+        <Pressable style={styles.sortBackdrop} onPress={() => setSortMenuOpen(false)}>
+          <Pressable style={styles.sortSheet}>
+            <Text style={styles.sortSheetTitle}>Ordenar por</Text>
+            {SORT_OPTIONS.map((opt) => {
+              const active = opt.key === sortMode;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={styles.sortOption}
+                  onPress={() => {
+                    setSortMode(opt.key);
+                    setSortMenuOpen(false);
+                  }}
+                >
+                  <Ionicons name={opt.icon} size={18} color={active ? '#3b82f6' : '#6b7280'} />
+                  <Text style={[styles.sortOptionText, active && styles.sortOptionTextActive]}>{opt.label}</Text>
+                  {active && <Ionicons name="checkmark" size={18} color="#3b82f6" />}
+                </TouchableOpacity>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -279,6 +361,35 @@ const styles = StyleSheet.create({
 
   setDefaultLink: { alignSelf: 'center', marginTop: Spacing.two },
   setDefaultText: { fontSize: 13, color: '#3b82f6', fontWeight: '600' },
+
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 9999,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginTop: Spacing.three,
+  },
+  sortButtonText: { fontSize: 12, fontWeight: '600', color: '#3b82f6' },
+
+  sortBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'flex-end' },
+  sortSheet: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.five,
+  },
+  sortSheetTitle: { fontSize: 13, fontWeight: '700', color: '#6b7280', marginBottom: Spacing.two },
+  sortOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  sortOptionText: { flex: 1, fontSize: 15, color: '#111111' },
+  sortOptionTextActive: { fontWeight: '700', color: '#3b82f6' },
 
   card: {
     flexDirection: 'row',
