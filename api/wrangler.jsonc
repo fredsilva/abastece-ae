@@ -7,9 +7,9 @@
     "enabled": true
   },
   "vars": {
-    // Access Application "Abastece Aê API" (destino abastece-ae-api.fredsilva-sistemas.workers.dev/admin)
+    // Access Application "Abastece Aê API" (destino abastece-ae-api.fredsilva.workers.dev/admin)
     // — ver PLANO-MVP.md, seção "Autenticação — Painel admin".
-    "CF_ACCESS_TEAM_DOMAIN": "fredsilva-sistemas.cloudflareaccess.com",
+    "CF_ACCESS_TEAM_DOMAIN": "fredsilva.cloudflareaccess.com",
     "CF_ACCESS_AUD": "90967ac15bf2c8679b283af87c43d2e3bf27c599ab7aa023e4a31500b7b82dac"
   },
   "d1_databases": [

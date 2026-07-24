@@ -1,4 +1,4 @@
-const API_BASE = "https://abastece-ae-api.fredsilva-sistemas.workers.dev";
+const API_BASE = "https://abastece-ae-api.fredsilva.workers.dev";
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
