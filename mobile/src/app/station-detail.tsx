@@ -8,11 +8,14 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { fetchDrivingRoute, type DrivingRoute } from '@/lib/mapbox-directions';
 import type { FuelType, Station } from '@/lib/api';
 import { formatDistance, formatDuration, formatPrice, formatRelativeTime } from '@/lib/format';
+import { useFavorites } from '@/context/favorites';
 
 export default function StationDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ station: string; fuel: FuelType; userLat?: string; userLng?: string }>();
   const station: Station = useMemo(() => JSON.parse(params.station), [params.station]);
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const favorite = isFavorite(station.id);
   const userCoords = useMemo(() => {
     if (!params.userLat || !params.userLng) return null;
     return { latitude: Number(params.userLat), longitude: Number(params.userLng) };
@@ -107,9 +110,12 @@ export default function StationDetailScreen() {
         )}
       </MapView>
 
-      <SafeAreaView style={styles.topOverlay} edges={['top', 'left']}>
+      <SafeAreaView style={styles.topOverlay} edges={['top', 'left', 'right']}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color="#111111" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.favoriteButton} onPress={() => toggleFavorite(station.id)}>
+          <Ionicons name={favorite ? 'heart' : 'heart-outline'} size={22} color={favorite ? '#ef4444' : '#111111'} />
         </TouchableOpacity>
       </SafeAreaView>
 
@@ -202,10 +208,32 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   map: { flex: 1 },
 
-  topOverlay: { position: 'absolute', top: 0, left: 0 },
+  topOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   backButton: {
     marginTop: 8,
     marginLeft: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  favoriteButton: {
+    marginTop: 8,
+    marginRight: 16,
     width: 40,
     height: 40,
     borderRadius: 20,

@@ -1,3 +1,5 @@
+import { notifyPriceDrop } from "./priceDropNotify";
+
 type FuelType = "gasolina" | "etanol" | "diesel";
 
 export interface ApplyAcceptedReportInput {
@@ -49,6 +51,8 @@ export async function applyAcceptedPriceReport(db: D1Database, input: ApplyAccep
     )
     .bind(input.gasStationId, input.fuelType, input.price, previousPrice, now, now, input.pixDiscount ? 1 : 0, input.cashDiscount ? 1 : 0)
     .run();
+
+  await notifyPriceDrop(db, input.gasStationId, input.fuelType, input.price, previousPrice);
 
   await db
     .prepare(

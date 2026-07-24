@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { applyAcceptedPriceReport } from "../lib/applyPriceReport";
+import { notifyPriceDrop } from "../lib/priceDropNotify";
 
 type FuelType = "gasolina" | "etanol" | "diesel";
 const FUEL_TYPES: FuelType[] = ["gasolina", "etanol", "diesel"];
@@ -354,6 +355,8 @@ admin.put("/stations/:id/prices", async (c) => {
     )
       .bind(crypto.randomUUID(), id, fuelType, price, previousPrice, changedBy, now)
       .run();
+
+    await notifyPriceDrop(c.env.DB, id, fuelType, price, previousPrice);
   }
 
   return c.json({ ok: true });

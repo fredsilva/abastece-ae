@@ -340,8 +340,8 @@ Botão "Abasteci aqui" na tela do posto (gatilho manual em primeiro plano — ve
 **Teste:** no posto (ou com localização simulada dentro de 150m), tocar "Abasteci aqui", preencher preço/litros, avaliar; longe do posto, confirmar que o backend rejeita; ver a nota do posto atualizar na lista após avaliar.
 
 ### Etapa 7 — Favoritos e notificação de queda de preço
-Favoritar/desfavoritar posto no app. Registro de push token (`expo-notifications`). Disparo de push ao detectar queda de preço em posto favoritado.
-**Teste:** favoritar um posto, reportar um preço mais baixo nele (outra conta ou via admin), confirmar recebimento da notificação push no device.
+Favoritar/desfavoritar posto no app (ícone de coração na tela do posto, tela dedicada "Favoritos" acessível pela Home). Registro de push token (`expo-notifications`, dependência nativa nova — exige EAS Build pra testar de verdade, não funciona em Expo Go a partir do SDK 53 no Android). Disparo de push ao detectar queda de preço em posto favoritado, tanto vindo de report aceito no app quanto de edição de preço no admin — os dois pontos que gravam preço novo chamam a mesma função `notifyPriceDrop`, com dedupe de ~6h por posto+combustível (`fuel_prices.last_drop_notified_at`).
+**Teste:** favoritar um posto, reportar um preço mais baixo nele (outra conta ou via admin), confirmar recebimento da notificação push no device (requer build com o novo módulo nativo).
 
 ### Etapa 8 — Admin: usuários, métricas e config
 Tela de usuários (trust_score, banir/desbanir), dashboard de métricas (nº postos, reports, fill-ups, usuários ativos, cobertura verificada vs não verificada), edição de `config:ranking_weights` e `config:price_bounds` via UI.

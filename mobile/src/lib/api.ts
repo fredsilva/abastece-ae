@@ -167,6 +167,58 @@ export async function submitRating(accessToken: string, input: RatingInput): Pro
   return handle(res);
 }
 
+export async function fetchFavoriteIds(accessToken: string): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/favorites/ids`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const body = await handle<{ stationIds: string[] }>(res);
+  return body.stationIds;
+}
+
+export async function fetchFavorites(
+  accessToken: string,
+  params: { fuel: FuelType; latitude?: number; longitude?: number }
+): Promise<Station[]> {
+  const query = new URLSearchParams({ fuel: params.fuel });
+  if (params.latitude !== undefined && params.longitude !== undefined) {
+    query.set("lat", String(params.latitude));
+    query.set("lng", String(params.longitude));
+  }
+  const res = await fetch(`${API_BASE}/favorites?${query.toString()}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const body = await handle<{ stations: Station[] }>(res);
+  return body.stations;
+}
+
+export async function addFavorite(accessToken: string, stationId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/favorites/${stationId}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  await handle(res);
+}
+
+export async function removeFavorite(accessToken: string, stationId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/favorites/${stationId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  await handle(res);
+}
+
+export async function registerPushToken(
+  accessToken: string,
+  input: { expoPushToken: string; platform: "ios" | "android" }
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/push-tokens`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(input),
+  });
+  await handle(res);
+}
+
 export async function logoutSession(refreshToken: string): Promise<void> {
   const res = await fetch(`${API_BASE}/auth/logout`, {
     method: "POST",

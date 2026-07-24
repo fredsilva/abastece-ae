@@ -42,7 +42,8 @@
           "locationWhenInUsePermission": "O Abastece Aê usa sua localização para mostrar os postos mais próximos e calcular distâncias."
         }
       ],
-      "@rnmapbox/maps"
+      "@rnmapbox/maps",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,

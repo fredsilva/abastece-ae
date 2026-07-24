@@ -6,6 +6,8 @@ import { stations } from "./routes/stations";
 import { priceReports } from "./routes/priceReports";
 import { fillUps } from "./routes/fillUps";
 import { ratings } from "./routes/ratings";
+import { favorites } from "./routes/favorites";
+import { pushTokens } from "./routes/pushTokens";
 import { cfAccess } from "./middleware/cfAccess";
 
 // Painel admin e API ficam no mesmo domínio (Worker serve o build do admin como static
@@ -22,6 +24,8 @@ app.use("/stations/*", cors({ origin: "*" }));
 app.use("/price-reports/*", cors({ origin: "*" }));
 app.use("/fill-ups/*", cors({ origin: "*" }));
 app.use("/ratings/*", cors({ origin: "*" }));
+app.use("/favorites/*", cors({ origin: "*" }));
+app.use("/push-tokens/*", cors({ origin: "*" }));
 
 app.use("/admin/*", cfAccess);
 app.route("/admin", admin);
@@ -30,6 +34,8 @@ app.route("/stations", stations);
 app.route("/price-reports", priceReports);
 app.route("/fill-ups", fillUps);
 app.route("/ratings", ratings);
+app.route("/favorites", favorites);
+app.route("/push-tokens", pushTokens);
 
 app.get("/health", async (c) => {
   const dbCheck = await c.env.DB.prepare("SELECT 1 AS ok").first<{ ok: number }>();

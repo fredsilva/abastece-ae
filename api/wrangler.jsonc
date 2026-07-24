@@ -38,7 +38,11 @@
       "/fill-ups",
       "/fill-ups/*",
       "/ratings",
-      "/ratings/*"
+      "/ratings/*",
+      "/favorites",
+      "/favorites/*",
+      "/push-tokens",
+      "/push-tokens/*"
     ]
   }
 }

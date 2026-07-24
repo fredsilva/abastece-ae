@@ -2,9 +2,11 @@ import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 
 import { AuthProvider, useAuth } from '@/context/auth';
+import { FavoritesProvider } from '@/context/favorites';
+import { registerForPushNotifications } from '@/lib/notifications';
 
 function RootNavigation() {
-  const { user, loading } = useAuth();
+  const { user, accessToken, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -18,6 +20,12 @@ function RootNavigation() {
     }
   }, [user, loading, segments]);
 
+  useEffect(() => {
+    if (accessToken) {
+      registerForPushNotifications(accessToken);
+    }
+  }, [accessToken]);
+
   if (loading) return null;
 
   return <Stack screenOptions={{ headerShown: false }} />;
@@ -26,7 +34,9 @@ function RootNavigation() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootNavigation />
+      <FavoritesProvider>
+        <RootNavigation />
+      </FavoritesProvider>
     </AuthProvider>
   );
 }
