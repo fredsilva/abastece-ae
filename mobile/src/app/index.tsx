@@ -34,7 +34,7 @@ const FUEL_ORDER: FuelType[] = FUEL_TABS.map((tab) => tab.key);
 
 // O mapa ocupa uma fração fixa da altura da tela (não medida dinamicamente), pra não "pular"
 // de tamanho quando a tela abre ou quando o combustível muda.
-const MAP_HEIGHT_RATIO = 0.47;
+const MAP_HEIGHT_RATIO = 0.45;
 
 type SortMode = 'best' | 'price' | 'distance';
 
@@ -60,7 +60,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     (async () => {
-      const { status } = await Location.getForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
       try {
         const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -147,7 +147,6 @@ export default function HomeScreen() {
     }
     return stations;
   }, [stations, sortMode]);
-  const sortLabel = SORT_OPTIONS.find((opt) => opt.key === sortMode)!.label;
 
   const mapHeight = windowHeight * MAP_HEIGHT_RATIO;
 
@@ -182,18 +181,17 @@ export default function HomeScreen() {
 
         <View style={[styles.mapWrap, { height: mapHeight }]}>
           {stations.length > 0 && (
-            <StationMapPreview stations={stations} tiers={priceTiers} userCoords={coords} />
+            <StationMapPreview
+              stations={stations}
+              tiers={priceTiers}
+              userCoords={coords}
+              onStationPress={handleStationPress}
+            />
           )}
         </View>
 
         <GestureDetector gesture={swipeGesture}>
           <View style={styles.listArea}>
-            <TouchableOpacity style={styles.sortButton} onPress={() => setSortMenuOpen(true)}>
-              <Ionicons name="swap-vertical-outline" size={14} color="#3b82f6" />
-              <Text style={styles.sortButtonText}>Ordenar: {sortLabel}</Text>
-              <Ionicons name="chevron-down" size={14} color="#3b82f6" />
-            </TouchableOpacity>
-
             {loading ? (
               <View style={styles.centerFill}>
                 <ActivityIndicator />
@@ -277,13 +275,13 @@ const styles = StyleSheet.create({
   centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.four },
   error: { color: '#ef4444', textAlign: 'center' },
   emptyText: { color: '#6b7280', textAlign: 'center', marginTop: Spacing.four, paddingHorizontal: Spacing.four },
-  list: { paddingHorizontal: Spacing.four },
+  list: { paddingHorizontal: Spacing.two, paddingTop: Spacing.two },
 
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.two,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.two,
   },
@@ -314,12 +312,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.two,
     marginBottom: Spacing.two,
   },
   locationText: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
 
-  mapWrap: { marginHorizontal: Spacing.four, marginBottom: Spacing.two, borderRadius: 12, overflow: 'hidden' },
+  mapWrap: { marginHorizontal: 0, marginBottom: Spacing.two, borderRadius: 12, overflow: 'hidden' },
 
   sortButton: {
     flexDirection: 'row',
@@ -332,7 +330,7 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    marginHorizontal: Spacing.four,
+    marginHorizontal: Spacing.two,
     marginBottom: Spacing.two,
   },
   sortButtonText: { fontSize: 12, fontWeight: '600', color: '#3b82f6' },

@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Mapbox, { Camera, MapView, PointAnnotation } from '@rnmapbox/maps';
 
 import { formatPrice } from '@/lib/format';
@@ -14,14 +15,19 @@ interface Props {
   stations: Station[];
   tiers: Map<string, PriceTier>;
   userCoords: { latitude: number; longitude: number } | null;
+  onStationPress?: (station: Station) => void;
 }
 
-export function StationMapPreview({ stations, tiers, userCoords }: Props) {
-  const center = userCoords
-    ? ([userCoords.longitude, userCoords.latitude] as [number, number])
-    : stations[0]
-      ? ([stations[0].longitude, stations[0].latitude] as [number, number])
-      : null;
+export function StationMapPreview({ stations, tiers, userCoords, onStationPress }: Props) {
+  // Estável entre re-renders enquanto a localização não mudar de verdade — senão a câmera
+  // volta a centralizar no usuário toda vez que a lista de postos muda (ex: troca de aba),
+  // brigando com o pan manual do usuário no mapa.
+  const center = useMemo<[number, number] | null>(() => {
+    if (userCoords) return [userCoords.longitude, userCoords.latitude];
+    if (stations[0]) return [stations[0].longitude, stations[0].latitude];
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userCoords?.latitude, userCoords?.longitude, stations[0]?.longitude, stations[0]?.latitude]);
 
   if (!center) return null;
 
@@ -41,9 +47,12 @@ export function StationMapPreview({ stations, tiers, userCoords }: Props) {
           const tierColor = PRICE_TIER_COLORS[tier];
           return (
             <PointAnnotation key={station.id} id={`station-${station.id}`} coordinate={[station.longitude, station.latitude]}>
-              <View style={[styles.pin, { backgroundColor: tierColor }, station.cheapest && styles.pinCheapest]}>
+              <TouchableOpacity
+                style={[styles.pin, { backgroundColor: tierColor }, station.cheapest && styles.pinCheapest]}
+                onPress={() => onStationPress?.(station)}
+              >
                 <Text style={styles.pinText}>{formatPrice(station.price)}</Text>
-              </View>
+              </TouchableOpacity>
             </PointAnnotation>
           );
         })}
