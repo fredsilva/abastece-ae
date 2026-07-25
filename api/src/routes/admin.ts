@@ -295,6 +295,64 @@ admin.put("/stations/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+async function deleteStationCascade(db: D1Database, id: string) {
+  await db.batch([
+    // preserva o histórico de abastecimento do usuário, só solta a referência ao posto/report removidos
+    db.prepare(
+      `UPDATE fill_ups SET price_report_id = NULL
+       WHERE price_report_id IN (SELECT id FROM price_reports WHERE gas_station_id = ?)`
+    ).bind(id),
+    db.prepare(`UPDATE fill_ups SET gas_station_id = NULL WHERE gas_station_id = ?`).bind(id),
+    db.prepare(`DELETE FROM ratings WHERE gas_station_id = ?`).bind(id),
+    db.prepare(`DELETE FROM gas_station_rating_summary WHERE gas_station_id = ?`).bind(id),
+    db.prepare(`DELETE FROM geofence_events WHERE gas_station_id = ?`).bind(id),
+    db.prepare(`DELETE FROM favorites WHERE gas_station_id = ?`).bind(id),
+    db.prepare(`DELETE FROM fuel_price_history WHERE gas_station_id = ?`).bind(id),
+    db.prepare(`DELETE FROM fuel_prices WHERE gas_station_id = ?`).bind(id),
+    db.prepare(`DELETE FROM price_reports WHERE gas_station_id = ?`).bind(id),
+    db.prepare(`DELETE FROM gas_stations WHERE id = ?`).bind(id),
+  ]);
+}
+
+admin.delete("/stations/:id", async (c) => {
+  const id = c.req.param("id");
+  const existing = await c.env.DB.prepare("SELECT id FROM gas_stations WHERE id = ?").bind(id).first();
+  if (!existing) {
+    return c.json({ error: "posto não encontrado" }, 404);
+  }
+  await deleteStationCascade(c.env.DB, id);
+  return c.json({ ok: true });
+});
+
+admin.post("/stations/bulk-delete", async (c) => {
+  const body = await c.req.json<{ ids?: string[] }>();
+  const ids = body.ids;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return c.json({ error: "corpo deve conter um array 'ids' não vazio" }, 400);
+  }
+  for (const id of ids) {
+    await deleteStationCascade(c.env.DB, id);
+  }
+  return c.json({ ok: true, deleted: ids.length });
+});
+
+admin.post("/stations/bulk-status", async (c) => {
+  const body = await c.req.json<{ ids?: string[]; status?: string }>();
+  const ids = body.ids;
+  const status = body.status;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return c.json({ error: "corpo deve conter um array 'ids' não vazio" }, 400);
+  }
+  if (status !== "active" && status !== "inactive") {
+    return c.json({ error: "status deve ser 'active' ou 'inactive'" }, 400);
+  }
+  const now = new Date().toISOString();
+  await c.env.DB.batch(
+    ids.map((id) => c.env.DB.prepare("UPDATE gas_stations SET status = ?, updated_at = ? WHERE id = ?").bind(status, now, id))
+  );
+  return c.json({ ok: true });
+});
+
 admin.put("/stations/:id/prices", async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json<Partial<Record<FuelType, number | null>>>();

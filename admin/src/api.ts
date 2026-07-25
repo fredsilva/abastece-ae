@@ -47,6 +47,34 @@ export async function updateStationPrices(id: string, prices: StationPricesInput
   await handle(res);
 }
 
+export async function deleteStation(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/stations/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  await handle(res);
+}
+
+export async function bulkDeleteStations(ids: string[]): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/stations/bulk-delete`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+  await handle(res);
+}
+
+export async function bulkUpdateStationStatus(ids: string[], status: "active" | "inactive"): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/stations/bulk-status`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, status }),
+  });
+  await handle(res);
+}
+
 export async function getStationPriceHistory(id: string): Promise<PriceHistoryEntry[]> {
   const res = await fetch(`${API_BASE}/admin/stations/${id}/prices/history`, {
     credentials: "include",
