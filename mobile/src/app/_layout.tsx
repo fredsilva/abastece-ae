@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AuthProvider, useAuth } from '@/context/auth';
 import { FavoritesProvider } from '@/context/favorites';
@@ -33,10 +34,12 @@ function RootNavigation() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <FavoritesProvider>
-        <RootNavigation />
-      </FavoritesProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <FavoritesProvider>
+          <RootNavigation />
+        </FavoritesProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -8,11 +8,14 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { StationCard } from '@/components/StationCard';
@@ -20,12 +23,18 @@ import { StationMapPreview } from '@/components/StationMapPreview';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { fetchStations, type FuelType, type Station } from '@/lib/api';
+import { computePriceTiers } from '@/lib/priceTier';
 
 const FUEL_TABS: { key: FuelType; label: string }[] = [
   { key: 'gasolina', label: 'Gasolina' },
   { key: 'etanol', label: 'Etanol' },
   { key: 'diesel', label: 'Diesel' },
 ];
+const FUEL_ORDER: FuelType[] = FUEL_TABS.map((tab) => tab.key);
+
+// O mapa ocupa uma fração fixa da altura da tela (não medida dinamicamente), pra não "pular"
+// de tamanho quando a tela abre ou quando o combustível muda.
+const MAP_HEIGHT_RATIO = 0.47;
 
 type SortMode = 'best' | 'price' | 'distance';
 
@@ -37,14 +46,15 @@ const SORT_OPTIONS: { key: SortMode; label: string; icon: keyof typeof Ionicons.
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user, setDefaultFuelTab } = useAuth();
+  const { user } = useAuth();
+  const { height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [selectedFuel, setSelectedFuel] = useState<FuelType>(user?.defaultFuelTab ?? 'gasolina');
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [settingDefault, setSettingDefault] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('best');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
@@ -86,17 +96,6 @@ export default function HomeScreen() {
     setRefreshing(false);
   }
 
-  async function handleSetDefault() {
-    setSettingDefault(true);
-    try {
-      await setDefaultFuelTab(selectedFuel);
-    } catch {
-      // silencioso — não é uma ação crítica, o usuário pode tentar de novo
-    } finally {
-      setSettingDefault(false);
-    }
-  }
-
   function handleProfilePress() {
     router.push('/account');
   }
@@ -112,7 +111,30 @@ export default function HomeScreen() {
     });
   }
 
-  const showSetDefault = useMemo(() => user !== null && user.defaultFuelTab !== selectedFuel, [user, selectedFuel]);
+  const changeFuel = useCallback((direction: 1 | -1) => {
+    setSelectedFuel((current) => {
+      const index = FUEL_ORDER.indexOf(current);
+      const nextIndex = index + direction;
+      return nextIndex < 0 || nextIndex >= FUEL_ORDER.length ? current : FUEL_ORDER[nextIndex];
+    });
+  }, []);
+
+  // Swipe pra esquerda avança pro próximo combustível (Gasolina → Etanol → Diesel), swipe pra
+  // direita volta — mesmo efeito prático de tocar nas abas flutuantes.
+  const swipeGesture = useMemo(
+    () =>
+      Gesture.Race(
+        Gesture.Fling()
+          .direction(Directions.LEFT)
+          .onEnd(() => runOnJS(changeFuel)(1)),
+        Gesture.Fling()
+          .direction(Directions.RIGHT)
+          .onEnd(() => runOnJS(changeFuel)(-1))
+      ),
+    [changeFuel]
+  );
+
+  const priceTiers = useMemo(() => computePriceTiers(stations), [stations]);
   const cheapestPrice = useMemo(
     () => (stations.length > 0 ? Math.min(...stations.map((s) => s.price)) : 0),
     [stations]
@@ -127,94 +149,98 @@ export default function HomeScreen() {
   }, [stations, sortMode]);
   const sortLabel = SORT_OPTIONS.find((opt) => opt.key === sortMode)!.label;
 
-  const listHeader = (
-    <View>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.logoBadge}>
-            <MaterialCommunityIcons name="gas-station" size={18} color="#ffffff" />
-          </View>
-          <Text style={styles.wordmark}>
-            Abastece <Text style={styles.wordmarkAccent}>Aê</Text>
-          </Text>
-        </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.profileButton} onPress={() => router.push('/favorites')}>
-            <Ionicons name="heart-outline" size={18} color="#111111" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.profileButton} onPress={handleProfilePress}>
-            <Ionicons name="person-outline" size={18} color="#111111" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {cityLabel && (
-        <View style={styles.locationRow}>
-          <Ionicons name="location-outline" size={16} color="#6b7280" />
-          <Text style={styles.locationText}>{cityLabel}</Text>
-        </View>
-      )}
-
-      {stations.length > 0 && <StationMapPreview stations={stations} userCoords={coords} />}
-
-      <View style={styles.tabGroup}>
-        {FUEL_TABS.map((tab) => {
-          const active = tab.key === selectedFuel;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              style={[styles.tab, active && styles.tabActive]}
-              onPress={() => setSelectedFuel(tab.key)}
-            >
-              <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {showSetDefault && (
-        <TouchableOpacity style={styles.setDefaultLink} onPress={handleSetDefault} disabled={settingDefault}>
-          <Text style={styles.setDefaultText}>{settingDefault ? 'Salvando...' : 'Definir como aba padrão'}</Text>
-        </TouchableOpacity>
-      )}
-
-      <TouchableOpacity style={styles.sortButton} onPress={() => setSortMenuOpen(true)}>
-        <Ionicons name="swap-vertical-outline" size={14} color="#3b82f6" />
-        <Text style={styles.sortButtonText}>Ordenar: {sortLabel}</Text>
-        <Ionicons name="chevron-down" size={14} color="#3b82f6" />
-      </TouchableOpacity>
-    </View>
-  );
+  const mapHeight = windowHeight * MAP_HEIGHT_RATIO;
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        {loading ? (
-          <View style={styles.centerFill}>
-            {listHeader}
-            <ActivityIndicator />
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.logoBadge}>
+              <MaterialCommunityIcons name="gas-station" size={18} color="#ffffff" />
+            </View>
+            <Text style={styles.wordmark}>
+              Abastece <Text style={styles.wordmarkAccent}>Aê</Text>
+            </Text>
           </View>
-        ) : error ? (
-          <View style={styles.centerFill}>
-            {listHeader}
-            <Text style={styles.error}>{error}</Text>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.profileButton} onPress={() => router.push('/favorites')}>
+              <Ionicons name="heart-outline" size={18} color="#111111" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.profileButton} onPress={handleProfilePress}>
+              <Ionicons name="person-outline" size={18} color="#111111" />
+            </TouchableOpacity>
           </View>
-        ) : (
-          <FlatList
-            data={sortedStations}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <StationCard station={item} cheapestPrice={cheapestPrice} onPress={() => handleStationPress(item)} />
-            )}
-            ListHeaderComponent={listHeader}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>Nenhum posto com preço de {selectedFuel} cadastrado ainda.</Text>
-            }
-            contentContainerStyle={styles.list}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-          />
+        </View>
+
+        {cityLabel && (
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={16} color="#6b7280" />
+            <Text style={styles.locationText}>{cityLabel}</Text>
+          </View>
         )}
+
+        <View style={[styles.mapWrap, { height: mapHeight }]}>
+          {stations.length > 0 && (
+            <StationMapPreview stations={stations} tiers={priceTiers} userCoords={coords} />
+          )}
+        </View>
+
+        <GestureDetector gesture={swipeGesture}>
+          <View style={styles.listArea}>
+            <TouchableOpacity style={styles.sortButton} onPress={() => setSortMenuOpen(true)}>
+              <Ionicons name="swap-vertical-outline" size={14} color="#3b82f6" />
+              <Text style={styles.sortButtonText}>Ordenar: {sortLabel}</Text>
+              <Ionicons name="chevron-down" size={14} color="#3b82f6" />
+            </TouchableOpacity>
+
+            {loading ? (
+              <View style={styles.centerFill}>
+                <ActivityIndicator />
+              </View>
+            ) : error ? (
+              <View style={styles.centerFill}>
+                <Text style={styles.error}>{error}</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={sortedStations}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <StationCard
+                    station={item}
+                    cheapestPrice={cheapestPrice}
+                    tier={priceTiers.get(item.id)}
+                    onPress={() => handleStationPress(item)}
+                  />
+                )}
+                ListEmptyComponent={
+                  <Text style={styles.emptyText}>Nenhum posto com preço de {selectedFuel} cadastrado ainda.</Text>
+                }
+                contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 96 }]}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+              />
+            )}
+          </View>
+        </GestureDetector>
       </SafeAreaView>
+
+      <View style={[styles.floatingTabBarWrap, { bottom: insets.bottom + 12 }]} pointerEvents="box-none">
+        <View style={styles.floatingTabBar}>
+          {FUEL_TABS.map((tab) => {
+            const active = tab.key === selectedFuel;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={[styles.floatingTab, active && styles.floatingTabActive]}
+                onPress={() => setSelectedFuel(tab.key)}
+              >
+                <Text style={[styles.floatingTabText, active && styles.floatingTabTextActive]}>{tab.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
 
       <Modal visible={sortMenuOpen} transparent animationType="fade" onRequestClose={() => setSortMenuOpen(false)}>
         <Pressable style={styles.sortBackdrop} onPress={() => setSortMenuOpen(false)}>
@@ -247,17 +273,19 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
   safeArea: { flex: 1 },
-  centerFill: { flex: 1, alignItems: 'center', paddingHorizontal: Spacing.four },
-  error: { color: '#ef4444', textAlign: 'center', marginTop: Spacing.four },
+  listArea: { flex: 1 },
+  centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.four },
+  error: { color: '#ef4444', textAlign: 'center' },
   emptyText: { color: '#6b7280', textAlign: 'center', marginTop: Spacing.four, paddingHorizontal: Spacing.four },
-  list: { paddingHorizontal: Spacing.four, paddingBottom: Spacing.six, gap: Spacing.two },
+  list: { paddingHorizontal: Spacing.four },
 
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: Spacing.four,
     paddingTop: Spacing.two,
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.two,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -282,24 +310,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.three },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.four,
+    marginBottom: Spacing.two,
+  },
   locationText: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
 
-  tabGroup: {
-    flexDirection: 'row',
-    backgroundColor: '#eef0f2',
-    borderRadius: 9999,
-    padding: 4,
-    gap: 4,
-    marginTop: Spacing.three,
-  },
-  tab: { flex: 1, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 9999, alignItems: 'center' },
-  tabActive: { backgroundColor: '#3b82f6' },
-  tabText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
-  tabTextActive: { color: '#ffffff' },
-
-  setDefaultLink: { alignSelf: 'center', marginTop: Spacing.two },
-  setDefaultText: { fontSize: 13, color: '#3b82f6', fontWeight: '600' },
+  mapWrap: { marginHorizontal: Spacing.four, marginBottom: Spacing.two, borderRadius: 12, overflow: 'hidden' },
 
   sortButton: {
     flexDirection: 'row',
@@ -312,7 +332,8 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    marginTop: Spacing.three,
+    marginHorizontal: Spacing.four,
+    marginBottom: Spacing.two,
   },
   sortButtonText: { fontSize: 12, fontWeight: '600', color: '#3b82f6' },
 
@@ -329,4 +350,22 @@ const styles = StyleSheet.create({
   sortOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   sortOptionText: { flex: 1, fontSize: 15, color: '#111111' },
   sortOptionTextActive: { fontWeight: '700', color: '#3b82f6' },
+
+  floatingTabBarWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
+  floatingTabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    borderRadius: 9999,
+    padding: 4,
+    gap: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  floatingTab: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 9999, alignItems: 'center' },
+  floatingTabActive: { backgroundColor: '#3b82f6' },
+  floatingTabText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+  floatingTabTextActive: { color: '#ffffff' },
 });

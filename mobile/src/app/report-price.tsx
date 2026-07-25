@@ -87,8 +87,8 @@ export default function ReportPriceScreen() {
               ? 'Obrigado por contribuir — o novo preço já está valendo na lista.'
               : 'Esse valor ficou fora da faixa esperada pra região, então nossa equipe vai revisar antes de publicar. Obrigado por reportar!'}
           </Text>
-          <TouchableOpacity style={styles.primaryButton} onPress={() => router.back()}>
-            <Text style={styles.primaryButtonText}>Voltar ao posto</Text>
+          <TouchableOpacity style={[styles.primaryButton, styles.resultButton]} onPress={() => router.back()}>
+            <Text style={styles.primaryButtonText}>Voltar</Text>
           </TouchableOpacity>
         </SafeAreaView>
       </View>
@@ -210,6 +210,8 @@ const styles = StyleSheet.create({
   },
   primaryButtonDisabled: { backgroundColor: '#93c5fd' },
   primaryButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
+
+  resultButton: { borderRadius: 9999, paddingHorizontal: 32 },
 
   resultSafeArea: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   resultIcon: { width: 72, height: 72, borderRadius: 36, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },

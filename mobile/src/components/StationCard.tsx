@@ -1,30 +1,24 @@
-import { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Spacing } from '@/constants/theme';
 import type { Station } from '@/lib/api';
 import { formatDistance, formatPrice, formatPriceDelta, formatRelativeTime } from '@/lib/format';
-
-const ICON_COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#fb923c'];
-
-function stationIconColor(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return ICON_COLORS[hash % ICON_COLORS.length];
-}
+import { PRICE_TIER_COLORS, type PriceTier } from '@/lib/priceTier';
 
 export function StationCard({
   station,
   cheapestPrice,
+  tier = 'mid',
   onPress,
 }: {
   station: Station;
   cheapestPrice: number;
+  tier?: PriceTier;
   onPress: () => void;
 }) {
   const distance = formatDistance(station.distanceMeters);
-  const iconColor = useMemo(() => stationIconColor(station.id), [station.id]);
+  const iconColor = PRICE_TIER_COLORS[tier];
   const hasRating = station.ratingsCount >= 10 && station.ratingAvg !== null;
 
   return (
@@ -80,7 +74,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     borderWidth: 1,
     borderColor: '#f0f0f0',
-    marginTop: Spacing.two,
+    marginTop: Spacing.one,
   },
   cardCheapest: { borderColor: '#10b981', borderWidth: 1.5 },
   iconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },

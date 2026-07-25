@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { StationCard } from '@/components/StationCard';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { fetchFavorites, type FuelType, type Station } from '@/lib/api';
+import { computePriceTiers } from '@/lib/priceTier';
 
 const FUEL_TABS: { key: FuelType; label: string }[] = [
   { key: 'gasolina', label: 'Gasolina' },
@@ -70,6 +71,7 @@ export default function FavoritesScreen() {
   }
 
   const cheapestPrice = stations.length > 0 ? Math.min(...stations.map((s) => s.price)) : 0;
+  const priceTiers = useMemo(() => computePriceTiers(stations), [stations]);
 
   return (
     <View style={styles.container}>
@@ -110,7 +112,12 @@ export default function FavoritesScreen() {
             data={stations}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <StationCard station={item} cheapestPrice={cheapestPrice} onPress={() => handleStationPress(item)} />
+              <StationCard
+                station={item}
+                cheapestPrice={cheapestPrice}
+                tier={priceTiers.get(item.id)}
+                onPress={() => handleStationPress(item)}
+              />
             )}
             ListEmptyComponent={
               <View style={styles.emptyState}>
