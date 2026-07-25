@@ -14,8 +14,6 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
-import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { StationCard } from '@/components/StationCard';
@@ -30,7 +28,6 @@ const FUEL_TABS: { key: FuelType; label: string }[] = [
   { key: 'etanol', label: 'Etanol' },
   { key: 'diesel', label: 'Diesel' },
 ];
-const FUEL_ORDER: FuelType[] = FUEL_TABS.map((tab) => tab.key);
 
 // O mapa ocupa uma fração fixa da altura da tela (não medida dinamicamente), pra não "pular"
 // de tamanho quando a tela abre ou quando o combustível muda.
@@ -111,29 +108,6 @@ export default function HomeScreen() {
     });
   }
 
-  const changeFuel = useCallback((direction: 1 | -1) => {
-    setSelectedFuel((current) => {
-      const index = FUEL_ORDER.indexOf(current);
-      const nextIndex = index + direction;
-      return nextIndex < 0 || nextIndex >= FUEL_ORDER.length ? current : FUEL_ORDER[nextIndex];
-    });
-  }, []);
-
-  // Swipe pra esquerda avança pro próximo combustível (Gasolina → Etanol → Diesel), swipe pra
-  // direita volta — mesmo efeito prático de tocar nas abas flutuantes.
-  const swipeGesture = useMemo(
-    () =>
-      Gesture.Race(
-        Gesture.Fling()
-          .direction(Directions.LEFT)
-          .onEnd(() => runOnJS(changeFuel)(1)),
-        Gesture.Fling()
-          .direction(Directions.RIGHT)
-          .onEnd(() => runOnJS(changeFuel)(-1))
-      ),
-    [changeFuel]
-  );
-
   const priceTiers = useMemo(() => computePriceTiers(stations), [stations]);
   const cheapestPrice = useMemo(
     () => (stations.length > 0 ? Math.min(...stations.map((s) => s.price)) : 0),
@@ -190,37 +164,35 @@ export default function HomeScreen() {
           )}
         </View>
 
-        <GestureDetector gesture={swipeGesture}>
-          <View style={styles.listArea}>
-            {loading ? (
-              <View style={styles.centerFill}>
-                <ActivityIndicator />
-              </View>
-            ) : error ? (
-              <View style={styles.centerFill}>
-                <Text style={styles.error}>{error}</Text>
-              </View>
-            ) : (
-              <FlatList
-                data={sortedStations}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <StationCard
-                    station={item}
-                    cheapestPrice={cheapestPrice}
-                    tier={priceTiers.get(item.id)}
-                    onPress={() => handleStationPress(item)}
-                  />
-                )}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>Nenhum posto com preço de {selectedFuel} cadastrado ainda.</Text>
-                }
-                contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 96 }]}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-              />
-            )}
-          </View>
-        </GestureDetector>
+        <View style={styles.listArea}>
+          {loading ? (
+            <View style={styles.centerFill}>
+              <ActivityIndicator />
+            </View>
+          ) : error ? (
+            <View style={styles.centerFill}>
+              <Text style={styles.error}>{error}</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={sortedStations}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <StationCard
+                  station={item}
+                  cheapestPrice={cheapestPrice}
+                  tier={priceTiers.get(item.id)}
+                  onPress={() => handleStationPress(item)}
+                />
+              )}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>Nenhum posto com preço de {selectedFuel} cadastrado ainda.</Text>
+              }
+              contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 96 }]}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+            />
+          )}
+        </View>
       </SafeAreaView>
 
       <View style={[styles.floatingTabBarWrap, { bottom: insets.bottom + 12 }]} pointerEvents="box-none">
@@ -317,7 +289,7 @@ const styles = StyleSheet.create({
   },
   locationText: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
 
-  mapWrap: { marginHorizontal: 0, marginBottom: Spacing.two, borderRadius: 12, overflow: 'hidden' },
+  mapWrap: { marginHorizontal: 0, marginBottom: Spacing.two },
 
   sortButton: {
     flexDirection: 'row',

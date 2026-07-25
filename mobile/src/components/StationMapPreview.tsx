@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Mapbox, { Camera, MapView, PointAnnotation } from '@rnmapbox/maps';
 
 import { formatPrice } from '@/lib/format';
@@ -38,7 +38,10 @@ export function StationMapPreview({ stations, tiers, userCoords, onStationPress 
 
         {userCoords && (
           <PointAnnotation id="user-location" coordinate={[userCoords.longitude, userCoords.latitude]}>
-            <View style={styles.userDot} />
+            <View style={styles.userLocationWrap}>
+              <View style={styles.userLocationHalo} />
+              <View style={styles.userLocationDot} />
+            </View>
           </PointAnnotation>
         )}
 
@@ -46,13 +49,18 @@ export function StationMapPreview({ stations, tiers, userCoords, onStationPress 
           const tier = tiers.get(station.id) ?? 'mid';
           const tierColor = PRICE_TIER_COLORS[tier];
           return (
-            <PointAnnotation key={station.id} id={`station-${station.id}`} coordinate={[station.longitude, station.latitude]}>
-              <TouchableOpacity
-                style={[styles.pin, { backgroundColor: tierColor }, station.cheapest && styles.pinCheapest]}
-                onPress={() => onStationPress?.(station)}
-              >
+            // O id inclui o preço de propósito: o PointAnnotation do @rnmapbox/maps não
+            // atualiza o conteúdo nativo sozinho quando só os children React mudam — trocar o
+            // id força remontar a annotation com o preço/cor certos ao trocar de combustível.
+            <PointAnnotation
+              key={`${station.id}-${station.price}`}
+              id={`station-${station.id}-${station.price}`}
+              coordinate={[station.longitude, station.latitude]}
+              onSelected={() => onStationPress?.(station)}
+            >
+              <View style={[styles.pin, { backgroundColor: tierColor }, station.cheapest && styles.pinCheapest]}>
                 <Text style={styles.pinText}>{formatPrice(station.price)}</Text>
-              </TouchableOpacity>
+              </View>
             </PointAnnotation>
           );
         })}
@@ -64,17 +72,23 @@ export function StationMapPreview({ stations, tiers, userCoords, onStationPress 
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
     backgroundColor: '#f5f5f5',
   },
   map: { flex: 1 },
-  userDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+  userLocationWrap: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+  userLocationHalo: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(59,130,246,0.25)',
+  },
+  userLocationDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: '#3b82f6',
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: '#ffffff',
   },
   pin: {
